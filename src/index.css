@@ -406,3 +406,169 @@ body { background-color: var(--paper); }
   .brand-mark svg { width: 37px; height: 37px; }
   .masthead-date { font-size: 13px; }
 }
+
+
+/* Mobile viewport and iOS input-zoom fixes, 2026-10-21 */
+@media (max-width: 760px) {
+  /* Keep the layout within the actual visual viewport, including narrow phones. */
+  html, body, #root { width: 100%; max-width: 100%; }
+  html, body { overflow-x: clip; }
+  body { min-width: 0; -webkit-text-size-adjust: 100%; }
+  .app-shell { width: calc(100% - 30px); max-width: 100%; margin-inline: auto; }
+  .app-shell, .app-shell > main, .page-section, .site-header,
+  .section-toolbar, .section-intro, .task-list, .task-form,
+  .week-grid, .month-grid, .month-weekdays { min-width: 0; }
+  .masthead-identity, .masthead-side, .masthead-brandtext,
+  .section-intro > div:first-child, .task-details, .task-right,
+  .task-form-fields > *, .week-entries, .week-task-open { min-width: 0; }
+  .display-heading, .task-title, .task-meta, .week-task-name,
+  .masthead-date, .brand-subtitle { overflow-wrap: anywhere; }
+  .task-title, .task-meta, .task-meta > span, .week-task-name { max-width: 100%; }
+  .task-actions { min-width: 0; flex-wrap: wrap; gap: 10px; }
+
+  /*
+   * iOS Safari zooms the whole page on focus when a form control is under 16px.
+   * All editing fields, including the compact weekly form, must stay >= 16px.
+   * Do not disable user-scalable or set maximum-scale in the viewport meta tag.
+   */
+  .task-form .field input,
+  .task-form .field select,
+  .task-form-compact .field input,
+  .task-form-compact .field select,
+  .task-form-compact .field-title input {
+    font-size: 16px;
+    min-height: 46px;
+    line-height: 1.3;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+  .task-form .field-title input { font-size: 16px; min-height: 50px; }
+  .task-form-fields, .task-form-compact .task-form-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+  .task-form { width: 100%; max-width: 100%; }
+  .form-actions { flex-wrap: wrap; gap: 13px; }
+  .task-form-top { gap: 12px; }
+  .task-form-top > * { min-width: 0; }
+  .field-label { overflow-wrap: anywhere; }
+
+  /* Make long titles and the time/actions row fit instead of widening the page. */
+  .task-item {
+    grid-template-columns: 22px 28px minmax(0, 1fr);
+    gap: 8px;
+    max-width: 100%;
+    padding-inline: 0;
+  }
+  .task-right {
+    grid-column: 3;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 5px 13px;
+    width: 100%;
+    max-width: 100%;
+  }
+  .task-time { flex: 0 1 auto; }
+  .task-actions { display: flex; flex: 0 1 auto; justify-content: flex-start; }
+  .task-check-label { max-width: 100%; }
+  .week-task-open { flex: 1 1 0; width: 100%; }
+  .week-task { min-width: 0; }
+  .week-column { min-width: 0; }
+  .month-cell { min-width: 0; max-width: 100%; }
+  .month-cell-tasks { overflow-wrap: anywhere; }
+}
+@media (max-width: 600px) {
+  /* Put the add button on its own row instead of forcing horizontal scrolling. */
+  .section-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    row-gap: 11px;
+    padding-block: 14px 20px;
+  }
+  .date-navigation {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 7px;
+    width: 100%;
+    min-width: 0;
+  }
+  .date-navigation .navigation-link {
+    display: block;
+    min-width: 0;
+    width: 100%;
+    min-height: 44px;
+    padding: 8px 2px;
+    text-align: center;
+    font-size: 12px;
+    white-space: normal;
+  }
+  .section-toolbar > .outline-button {
+    width: 100%;
+    max-width: 100%;
+    min-height: 44px;
+    justify-content: center;
+    gap: 11px;
+  }
+  .week-navigation-label { margin-left: 0; text-align: center; }
+  .task-list-header { align-items: flex-start; flex-wrap: wrap; gap: 9px; }
+  .task-list-header .eyebrow { font-size: 9px; letter-spacing: .09em; }
+  .week-grid { width: 100%; }
+  .week-column { grid-template-columns: 88px minmax(0,1fr); gap: 0 10px; }
+  .week-day-head { min-width: 0; }
+}
+@media (max-width: 520px) {
+  /* Two-row masthead prevents Arabic greeting and brand from competing for width. */
+  .masthead {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-content: center;
+    gap: 16px;
+    min-height: 0;
+    padding: 24px 17px;
+  }
+  .masthead-identity { width: 100%; }
+  .masthead-brandrow { max-width: 100%; }
+  .brand-subtitle { margin-left: 0; max-width: 100%; }
+  .masthead-side {
+    display: flex;
+    flex-flow: row wrap;
+    justify-content: space-between;
+    align-items: baseline;
+    width: 100%;
+    gap: 6px 12px;
+    padding: 10px 0 0;
+    border-left: 0;
+    border-top: 1px solid rgba(216,184,120,.3);
+    text-align: left;
+  }
+  .masthead-side .eyebrow { display: none; }
+  .arabic-greeting { line-height: 1.4; }
+  .top-message { gap: 9px; }
+  .top-message > * { min-width: 0; }
+  .section-intro { min-width: 0; }
+  .display-heading { max-width: 100%; }
+  .view-tabs { max-width: 100%; justify-content: space-between; gap: 8px; }
+  .view-tab { min-width: 0; gap: 5px; }
+  .month-stats > div { min-width: 0; }
+  .page-footer-line { flex-wrap: wrap; }
+}
+@media (max-width: 380px) {
+  /* Native date/time pickers need a whole row on especially small screens. */
+  .task-form-fields, .task-form-compact .task-form-fields {
+    grid-template-columns: minmax(0,1fr);
+  }
+  .task-form { padding-inline: 12px; }
+  .task-right { align-items: flex-start; }
+  .masthead { padding-inline: 13px; }
+  .masthead-brandrow { gap: 7px; }
+  .brand-name { font-size: 42px; }
+  .view-tab { font-size: 11px; }
+  .month-cell { padding-inline: 3px; }
+  .month-cell-day { font-size: 22px; }
+  .month-cell-tasks { font-size: 7px; }
+}

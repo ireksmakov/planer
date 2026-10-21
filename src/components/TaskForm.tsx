@@ -38,6 +38,11 @@ export function TaskForm({ date, initial, compact = false, onSubmit, onCancel }:
       setDateError(true);
       return;
     }
+    // Release focus before the form unmounts so mobile keyboards close cleanly.
+    const focusedElement = document.activeElement;
+    if (focusedElement instanceof HTMLElement && event.currentTarget.contains(focusedElement)) {
+      focusedElement.blur();
+    }
     onSubmit({
       title: title.trim(),
       date: selectedDate,
