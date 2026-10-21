@@ -35,12 +35,12 @@ export function MonthView({ date, tasks, onChangeDate, onOpenDay }: MonthViewPro
         <div>
           <span className="eyebrow">КАЛЕНДАРЬ / {dateLabel(date, 'yyyy')}</span>
           <h1 id="month-title" className="display-heading">{capitalize(dateLabel(date, 'LLLL'))}<span className="heading-comma">.</span></h1>
-          <p className="section-deck">Взгляд на главное — в масштабе месяца.</p>
+          <p className="section-deck">Время для намерений, усилий и благодарности.</p>
         </div>
         <div className="section-aside">
           <span className="eyebrow">МЕСЯЦ ГОДА</span>
           <span className="aside-number">{dateLabel(date, 'MM')}</span>
-          <span className="aside-caption">Пусть всё сложится.</span>
+          <span className="aside-caption">Месяц новых возможностей.</span>
         </div>
       </div>
       <div className="section-toolbar">
@@ -78,7 +78,7 @@ export function MonthView({ date, tasks, onChangeDate, onOpenDay }: MonthViewPro
         <div><span className="eyebrow">ВСЕГО ЗАДАЧ</span><strong>{stats.total}</strong></div>
         <div><span className="eyebrow">ВЫПОЛНЕНО</span><strong>{stats.completed}</strong></div>
         <div><span className="eyebrow">ДНЕЙ С ПЛАНАМИ</span><strong>{activeDays}</strong></div>
-        <div className="month-note">Каждая отметка —<br /><em>маленькая победа.</em></div>
+        <div className="month-note">Пусть дела приносят<br /><em>пользу и благо.</em></div>
       </div>
     </section>
   );

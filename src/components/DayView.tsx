@@ -23,14 +23,14 @@ export function DayView({ date, tasks, onChangeDate, addTask, updateTask, delete
     <section className="page-section day-page" aria-labelledby="day-title">
       <div className="section-intro">
         <div>
-          <span className="eyebrow">ЕЖЕДНЕВНЫЙ ПЛАН / {dateLabel(date, 'yyyy')}</span>
+          <span className="eyebrow">ДЕНЬ С ДОБРЫМ НАМЕРЕНИЕМ / {dateLabel(date, 'yyyy')}</span>
           <h1 id="day-title" className="display-heading">{capitalize(dateLabel(date, 'EEEE'))}<span className="heading-comma">,</span><br />{dateLabel(date, 'd MMMM')}</h1>
-          <p className="section-deck">Большие планы начинаются с одного ясного дня.</p>
+          <p className="section-deck">Начните с доброго намерения — и уделите время главному.</p>
         </div>
         <div className="section-aside">
           <span className="eyebrow">ДЕНЬ ГОДА</span>
           <span className="aside-number">{dateLabel(date, 'DDD').padStart(3, '0')}</span>
-          <span className="aside-caption">Один день за раз.</span>
+          <span className="aside-caption">В каждом дне есть благо.</span>
         </div>
       </div>
 
@@ -61,8 +61,8 @@ export function DayView({ date, tasks, onChangeDate, addTask, updateTask, delete
       {dayTasks.length === 0 ? (
         <div className="empty-state">
           <span className="eyebrow">ЧИСТЫЙ ЛИСТ</span>
-          <p>Пока здесь<br /><em>тихо.</em></p>
-          <span>Добавьте первую задачу — пусть день обретёт форму.</span>
+          <p>Пока здесь<br /><em>спокойно.</em></p>
+          <span>Начните с одного важного дела.</span>
         </div>
       ) : (
         <div className="task-list">
@@ -79,7 +79,7 @@ export function DayView({ date, tasks, onChangeDate, addTask, updateTask, delete
           ))}
         </div>
       )}
-      <div className="page-footer-line"><span>ПЛАНИРУЙТЕ ОСОЗНАННО</span><span>© ПЛАНЕР</span></div>
+      <div className="page-footer-line"><span>ВРЕМЯ — ДОВЕРЕННОЕ БЛАГО</span><span>© ПЛАНЕР</span></div>
     </section>
   );
 }

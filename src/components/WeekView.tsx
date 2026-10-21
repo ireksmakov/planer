@@ -28,14 +28,14 @@ export function WeekView({ date, tasks, onChangeDate, onOpenDay, addTask, toggle
     <section className="page-section week-page" aria-labelledby="week-title">
       <div className="section-intro">
         <div>
-          <span className="eyebrow">ПЛАН НА СЕМЬ ДНЕЙ / {dateLabel(date, 'yyyy')}</span>
+          <span className="eyebrow">СЕМЬ ДНЕЙ В РАВНОВЕСИИ / {dateLabel(date, 'yyyy')}</span>
           <h1 id="week-title" className="display-heading">Эта неделя<span className="heading-comma">.</span></h1>
-          <p className="section-deck">{dateRangeLabel(days[0], days[6])} · Пространство для важного.</p>
+          <p className="section-deck">{dateRangeLabel(days[0], days[6])} · Время для дел и для отдыха.</p>
         </div>
         <div className="section-aside">
           <span className="eyebrow">НЕДЕЛЯ</span>
           <span className="aside-number">{dateLabel(date, 'II')}</span>
-          <span className="aside-caption">Семь новых возможностей.</span>
+          <span className="aside-caption">Каждый день имеет значение.</span>
         </div>
       </div>
       <div className="section-toolbar">
@@ -92,7 +92,7 @@ export function WeekView({ date, tasks, onChangeDate, onOpenDay, addTask, toggle
       <div className="week-bottom">
         <span className="eyebrow">ВСЕГО НА НЕДЕЛЮ</span>
         <span>{stats.total} задач · {stats.completed} выполнено</span>
-        <span className="week-bottom-aside">Сначала главное, остальное — следом.</span>
+        <span className="week-bottom-aside">С заботой о главном.</span>
       </div>
     </section>
   );
