@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { Task, TaskActions, TaskInput } from '../types';
+import { fromDateKey, toDateKey, today } from '../utils/date';
 
 const STORAGE_KEY = 'planer.editorial.tasks.v1';
 
@@ -72,6 +73,21 @@ export function useTasks(): { tasks: Task[] } & TaskActions {
     ));
   };
 
+  const rescheduleTask = (id: string, targetDate: string) => {
+    // Preserve all task fields except the date; reject invalid or past targets.
+    const parsed = fromDateKey(targetDate);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(targetDate) ||
+        Number.isNaN(parsed.getTime()) ||
+        toDateKey(parsed) !== targetDate ||
+        targetDate < toDateKey(today())) return;
+
+    setTasks((previous) => previous.map((task) =>
+      task.id === id && !task.completed && task.date < toDateKey(today())
+        ? { ...task, date: targetDate }
+        : task,
+    ));
+  };
+
   const deleteTask = (id: string) => {
     setTasks((previous) => previous.filter((task) => task.id !== id));
   };
@@ -82,5 +98,5 @@ export function useTasks(): { tasks: Task[] } & TaskActions {
     ));
   };
 
-  return { tasks, addTask, updateTask, deleteTask, toggleTask };
+  return { tasks, addTask, updateTask, rescheduleTask, deleteTask, toggleTask };
 }

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Task, TaskActions } from '../types';
-import { capitalize, dateLabel, getTaskStats, shiftDay, sortTasks, toDateKey, today } from '../utils/date';
+import { capitalize, dateLabel, fromDateKey, getTaskStats, shiftDay, sortTasks, toDateKey, today } from '../utils/date';
 import { ProgressLine } from './ProgressLine';
 import { TaskForm } from './TaskForm';
 import { TaskItem } from './TaskItem';
@@ -11,13 +11,51 @@ interface DayViewProps extends TaskActions {
   onChangeDate: (date: Date) => void;
 }
 
-export function DayView({ date, tasks, onChangeDate, addTask, updateTask, deleteTask, toggleTask }: DayViewProps) {
+export function DayView({ date, tasks, onChangeDate, addTask, updateTask, rescheduleTask, deleteTask, toggleTask }: DayViewProps) {
   const [editing, setEditing] = useState<string | 'new' | null>(null);
+  const [rescheduleNotice, setRescheduleNotice] = useState('');
   const key = toDateKey(date);
+  const todayKey = toDateKey(today());
   const dayTasks = useMemo(() => sortTasks(tasks.filter((task) => task.date === key)), [tasks, key]);
+  const overdueTasks = useMemo(() =>
+    tasks.filter((task) => !task.completed && task.date < todayKey)
+      .sort((a, b) => b.date.localeCompare(a.date) || a.createdAt - b.createdAt),
+    [tasks, todayKey],
+  );
   const stats = getTaskStats(dayTasks);
+  const showOverdue = key === todayKey;
 
-  useEffect(() => setEditing(null), [key]);
+  useEffect(() => { setEditing(null); setRescheduleNotice(''); }, [key]);
+
+  function handleReschedule(id: string, targetDate: string) {
+    const task = tasks.find((item) => item.id === id);
+    if (!task) return;
+    rescheduleTask(id, targetDate);
+    setRescheduleNotice(`«${task.title}» перенесена на ${dateLabel(fromDateKey(targetDate), 'd MMMM yyyy')}`);
+  }
+
+  function renderTask(task: Task, index: number, showOriginalDate = false) {
+    return editing === task.id ? (
+      <TaskForm
+        key={task.id}
+        date={key}
+        initial={task}
+        onSubmit={(input) => { updateTask(task.id, input); setEditing(null); }}
+        onCancel={() => setEditing(null)}
+      />
+    ) : (
+      <TaskItem
+        key={task.id}
+        task={task}
+        index={index}
+        showOriginalDate={showOriginalDate}
+        onToggle={toggleTask}
+        onEdit={setEditing}
+        onDelete={deleteTask}
+        onReschedule={handleReschedule}
+      />
+    );
+  }
 
   return (
     <section className="page-section day-page" aria-labelledby="day-title">
@@ -54,6 +92,25 @@ export function DayView({ date, tasks, onChangeDate, addTask, updateTask, delete
         />
       )}
 
+      {rescheduleNotice && <p className="reschedule-notice" role="status">{rescheduleNotice}</p>}
+
+      {showOverdue && overdueTasks.length > 0 && (
+        <section className="overdue-section" aria-labelledby="overdue-tasks-heading">
+          <div className="overdue-header">
+            <div>
+              <span className="eyebrow overdue-kicker">ТРЕБУЮТ ВНИМАНИЯ</span>
+              <h2 id="overdue-tasks-heading" className="overdue-title">
+                Просроченные задачи <span>({overdueTasks.length})</span>
+              </h2>
+              <p className="overdue-hint">Перенесите невыполненные дела на удобную дату или отметьте их выполненными.</p>
+            </div>
+          </div>
+          <div className="task-list overdue-task-list">
+            {overdueTasks.map((task, index) => renderTask(task, index, true))}
+          </div>
+        </section>
+      )}
+
       <div className="task-list-header">
         <span className="eyebrow">ЗАДАЧИ / {String(dayTasks.length).padStart(2, '0')}</span>
         <span className="eyebrow">ВРЕМЯ / ДЕЙСТВИЯ</span>
@@ -66,17 +123,7 @@ export function DayView({ date, tasks, onChangeDate, addTask, updateTask, delete
         </div>
       ) : (
         <div className="task-list">
-          {dayTasks.map((task, index) => editing === task.id ? (
-            <TaskForm
-              key={task.id}
-              date={key}
-              initial={task}
-              onSubmit={(input) => { updateTask(task.id, input); setEditing(null); }}
-              onCancel={() => setEditing(null)}
-            />
-          ) : (
-            <TaskItem key={task.id} task={task} index={index} onToggle={toggleTask} onEdit={setEditing} onDelete={deleteTask} />
-          ))}
+          {dayTasks.map((task, index) => renderTask(task, index))}
         </div>
       )}
       <div className="page-footer-line"><span>ВРЕМЯ — ДОВЕРЕННОЕ БЛАГО</span><span>© ПЛАНЕР</span></div>

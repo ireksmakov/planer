@@ -17,6 +17,7 @@ export type TaskInput = Pick<Task, 'title' | 'date' | 'time' | 'priority' | 'cat
 export interface TaskActions {
   addTask: (input: TaskInput) => void;
   updateTask: (id: string, input: TaskInput) => void;
+  rescheduleTask: (id: string, targetDate: string) => void;
   deleteTask: (id: string) => void;
   toggleTask: (id: string) => void;
 }

@@ -572,3 +572,87 @@ body { background-color: var(--paper); }
   .month-cell-day { font-size: 22px; }
   .month-cell-tasks { font-size: 7px; }
 }
+
+
+/* Rescheduling unfinished tasks from past days */
+.overdue-section { margin: 28px 0 43px; min-width: 0; }
+.overdue-header {
+  display: flex; justify-content: space-between; gap: 18px;
+  padding: 20px 0 21px; border-top: 2px solid var(--accent);
+}
+.overdue-kicker { color: var(--accent); }
+.overdue-title {
+  margin: 10px 0 8px;
+  color: var(--deep);
+  font: 500 clamp(28px, 3.3vw, 42px)/1.13 'Cormorant Garamond', Georgia, serif;
+  letter-spacing: -.02em;
+}
+.overdue-title > span { color: var(--accent); }
+.overdue-hint {
+  max-width: 650px; margin: 0; font-size: 12px;
+  line-height: 1.6; color: var(--muted);
+}
+.overdue-task-list { border-top: 1px solid var(--hairline); }
+.overdue-task-list .task-item { padding-block: 18px; }
+.task-overdue-date { color: #895525; font-weight: 700; }
+.reschedule-trigger { color: #895525; font-weight: 700; }
+.reschedule-notice {
+  margin: 16px 0 21px; padding: 12px 16px; color: var(--deep);
+  border-left: 3px solid var(--completed); background: var(--sand);
+  font-size: 13px; line-height: 1.5; overflow-wrap: anywhere;
+}
+.task-reschedule-area { grid-column: 1 / -1; width: 100%; min-width: 0; }
+.reschedule-panel {
+  padding: 19px; margin-top: 5px; background: var(--ivory);
+  border-top: 2px solid var(--accent); border-bottom: 1px solid var(--hairline);
+  min-width: 0; max-width: 100%;
+}
+.reschedule-heading {
+  display: flex; justify-content: space-between; align-items: center;
+  flex-wrap: wrap; gap: 12px; margin-bottom: 15px;
+}
+.reschedule-controls { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 14px 24px; min-width: 0; }
+.reschedule-quick-actions { display: flex; flex-wrap: wrap; gap: 9px; }
+.reschedule-quick-button, .reschedule-save-button {
+  min-height: 44px; border: 1px solid var(--deep); padding: 10px 15px;
+  color: var(--deep); background: transparent; border-radius: 2px;
+  font-size: 13px; font-weight: 700;
+}
+.reschedule-quick-button:hover, .reschedule-save-button:hover:not(:disabled) { background: var(--deep); color: var(--ivory); }
+.reschedule-save-button { color: var(--ivory); background: var(--deep); }
+.reschedule-save-button:disabled { opacity: .45; cursor: not-allowed; }
+.reschedule-date-form {
+  display: flex; align-items: flex-end; flex-wrap: wrap; gap: 9px;
+  min-width: 0; max-width: 100%;
+}
+.reschedule-date-label { flex: 0 0 100%; color: var(--muted); font-size: 11px; font-weight: 700; }
+.reschedule-date-form input {
+  width: 173px; max-width: 100%; min-width: 0; height: 44px;
+  padding: 7px 9px; border: 1px solid var(--hairline);
+  background: var(--paper); color: var(--deep); border-radius: 2px;
+  font-family: 'Manrope', sans-serif; font-size: 16px;
+}
+.reschedule-date-form input:focus-visible,
+.reschedule-quick-button:focus-visible,
+.reschedule-save-button:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+@media (max-width: 760px) {
+  .overdue-section { margin-block: 22px 33px; }
+  .overdue-title { font-size: 31px; }
+  .overdue-hint { font-size: 12px; }
+  .reschedule-panel { padding: 14px 11px; }
+  .reschedule-controls, .reschedule-quick-actions, .reschedule-date-form {
+    width: 100%; max-width: 100%; min-width: 0;
+  }
+  .reschedule-quick-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .reschedule-date-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+  .reschedule-date-label { grid-column: 1 / -1; }
+  .reschedule-date-form input { width: 100%; min-width: 0; font-size: 16px; }
+  .reschedule-save-button { white-space: nowrap; }
+  .task-actions { row-gap: 12px; }
+}
+@media (max-width: 360px) {
+  .reschedule-date-form { grid-template-columns: minmax(0, 1fr); }
+  .reschedule-save-button { width: 100%; }
+}
