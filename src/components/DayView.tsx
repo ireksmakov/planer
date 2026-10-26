@@ -15,6 +15,7 @@ export function DayView({ date, tasks, onChangeDate, addTask, updateTask, resche
   const [editing, setEditing] = useState<string | 'new' | null>(null);
   const [rescheduleNotice, setRescheduleNotice] = useState('');
   const [overdueExpanded, setOverdueExpanded] = useState(false);
+  const [todayExpanded, setTodayExpanded] = useState(false);
   const key = toDateKey(date);
   const todayKey = toDateKey(today());
   const dayTasks = useMemo(() => sortTasks(tasks.filter((task) => task.date === key)), [tasks, key]);
@@ -26,7 +27,12 @@ export function DayView({ date, tasks, onChangeDate, addTask, updateTask, resche
   const stats = getTaskStats(dayTasks);
   const showOverdue = key === todayKey;
 
-  useEffect(() => { setEditing(null); setRescheduleNotice(''); setOverdueExpanded(false); }, [key]);
+  useEffect(() => {
+    setEditing(null);
+    setRescheduleNotice('');
+    setOverdueExpanded(false);
+    setTodayExpanded(false);
+  }, [key]);
 
   function handleReschedule(id: string, targetDate: string) {
     const task = tasks.find((item) => item.id === id);
@@ -138,23 +144,35 @@ export function DayView({ date, tasks, onChangeDate, addTask, updateTask, resche
             </div>
             <h2 id="today-goals-heading" className="today-goals-title">Задачи на сегодня</h2>
             <p className="today-goals-hint">Выполняйте дела в удобном ритме. Невыполненные задачи после этой даты появятся в просроченных.</p>
-            <div className="today-goals-columns">
-              <span>ЗАДАЧИ / {String(dayTasks.length).padStart(2, '0')}</span>
-              <span>ВРЕМЯ / ДЕЙСТВИЯ</span>
+            <button
+              type="button"
+              className="today-goals-toggle"
+              aria-expanded={todayExpanded}
+              aria-controls="today-task-list"
+              onClick={() => setTodayExpanded((expanded) => !expanded)}
+            >
+              <span>{todayExpanded ? 'Свернуть список' : 'Развернуть список задач'}</span>
+              <span className={`today-goals-toggle-chevron ${todayExpanded ? 'expanded' : ''}`} aria-hidden="true">⌄</span>
+            </button>
+            <div id="today-task-list" className="today-goals-content" hidden={!todayExpanded}>
+              <div className="today-goals-columns">
+                <span>ЗАДАЧИ / {String(dayTasks.length).padStart(2, '0')}</span>
+                <span>ВРЕМЯ / ДЕЙСТВИЯ</span>
+              </div>
+              {dayTasks.length === 0 ? (
+                <div className="today-goals-empty" role="status">
+                  <span className="eyebrow">НА СЕГОДНЯ НЕТ ЗАДАЧ</span>
+                  <p>Новый день — новые возможности.</p>
+                  <button type="button" className="today-goals-add" onClick={() => setEditing('new')}>
+                    + Добавить задачу на сегодня
+                  </button>
+                </div>
+              ) : (
+                <div className="task-list today-goals-list">
+                  {dayTasks.map((task, index) => renderTask(task, index))}
+                </div>
+              )}
             </div>
-            {dayTasks.length === 0 ? (
-              <div className="today-goals-empty" role="status">
-                <span className="eyebrow">НА СЕГОДНЯ НЕТ ЗАДАЧ</span>
-                <p>Новый день — новые возможности.</p>
-                <button type="button" className="today-goals-add" onClick={() => setEditing('new')}>
-                  + Добавить задачу на сегодня
-                </button>
-              </div>
-            ) : (
-              <div className="task-list today-goals-list">
-                {dayTasks.map((task, index) => renderTask(task, index))}
-              </div>
-            )}
           </div>
         </section>
       ) : (

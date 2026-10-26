@@ -976,3 +976,44 @@ body { background-color: var(--paper); }
   .overdue-section + .today-goals-section { margin-top: 16px; }
   .today-goals-empty { padding-block: 20px; }
 }
+
+
+/* Collapsible list in the green today panel; mirrors overdue behavior. */
+.today-goals-toggle {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  max-width: 100%;
+  min-height: 46px;
+  margin: 0 0 12px;
+  padding: 11px 19px;
+  color: #fffdf8;
+  background: #396c50;
+  border: 1px solid #396c50;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+  cursor: pointer;
+  transition: opacity 150ms ease-out, transform 150ms ease-out;
+}
+.today-goals-toggle:hover { opacity: .9; transform: translateY(-1px); }
+.today-goals-toggle:focus-visible { outline: 2px solid #396c50; outline-offset: 3px; }
+.today-goals-toggle-chevron {
+  display: inline-block;
+  line-height: .6;
+  font-size: 20px;
+  transition: transform 150ms ease-out;
+}
+.today-goals-toggle-chevron.expanded { transform: rotate(180deg); }
+.today-goals-content { max-width: 100%; min-width: 0; }
+.today-goals-content[hidden] { display: none !important; }
+@media (max-width: 760px) {
+  .today-goals-toggle { width: 100%; }
+  .today-goals-hero { padding-bottom: 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .today-goals-toggle, .today-goals-toggle-chevron { transition: none; }
+}
