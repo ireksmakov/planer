@@ -1017,3 +1017,40 @@ body { background-color: var(--paper); }
 @media (prefers-reduced-motion: reduce) {
   .today-goals-toggle, .today-goals-toggle-chevron { transition: none; }
 }
+
+
+/* Notify users on iOS Safari when a newer GitHub Pages build is published. */
+.update-banner {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 17px;
+  padding: 12px 17px;
+  border: 1px solid #B5D3BE;
+  background: #E6F3E9;
+  color: #315B40;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.update-banner-button {
+  min-height: 44px;
+  border: 1px solid #396C50;
+  border-radius: 3px;
+  padding: 10px 16px;
+  background: #396C50;
+  color: #FFFDF8;
+  font-size: 13px;
+  font-weight: 700;
+}
+.update-banner-button:focus-visible {
+  outline: 2px solid #396C50;
+  outline-offset: 3px;
+}
+@media (max-width: 600px) {
+  .update-banner, .update-banner-button { width: 100%; }
+  .update-banner-button { text-align: center; }
+}

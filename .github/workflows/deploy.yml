@@ -26,7 +26,13 @@ jobs:
           node-version: '22'
       - name: Install dependencies
         run: npm install --no-audit --no-fund
+      - name: Prepare version manifest
+        run: |
+          mkdir -p public
+          printf '{"version":"%s"}\n' "$GITHUB_SHA" > public/version.json
       - name: Build app
+        env:
+          VITE_APP_VERSION: ${{ github.sha }}
         run: npm run build
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v3
