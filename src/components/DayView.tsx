@@ -124,28 +124,51 @@ export function DayView({ date, tasks, onChangeDate, addTask, updateTask, resche
         </section>
       )}
 
-      <div className="task-list-header">
-        <div className="today-tasks-label">
-          <span className="eyebrow">ЗАДАЧИ / {String(dayTasks.length).padStart(2, '0')}</span>
-          {dayTasks.some((task) => !task.completed && task.date >= todayKey) && (
-            <span className="on-track-indicator">
-              <span className="status-lamp" aria-hidden="true" />
-              АКТУАЛЬНЫЕ ЦЕЛИ
-            </span>
-          )}
-        </div>
-        <span className="eyebrow">ВРЕМЯ / ДЕЙСТВИЯ</span>
-      </div>
       {dayTasks.length === 0 ? (
-        <div className="empty-state">
-          <span className="eyebrow">ЧИСТЫЙ ЛИСТ</span>
-          <p>Пока здесь<br /><em>спокойно.</em></p>
-          <span>Начните с одного важного дела.</span>
-        </div>
+        <>
+          <div className="task-list-header">
+            <span className="eyebrow">ЗАДАЧИ / 00</span>
+            <span className="eyebrow">ВРЕМЯ / ДЕЙСТВИЯ</span>
+          </div>
+          <div className="empty-state">
+            <span className="eyebrow">ЧИСТЫЙ ЛИСТ</span>
+            <p>Пока здесь<br /><em>спокойно.</em></p>
+            <span>Начните с одного важного дела.</span>
+          </div>
+        </>
+      ) : key === todayKey ? (
+        <section className="today-goals-section" aria-labelledby="today-goals-heading">
+          <div className="today-goals-hero">
+            <div className="today-goals-meta">
+              <span className="today-goals-state">
+                <span className="status-lamp" aria-hidden="true" />
+                {stats.completed === stats.total ? 'ВСЁ ВЫПОЛНЕНО' : 'В ПРОЦЕССЕ'}
+              </span>
+              <span className="today-goals-count">
+                {stats.total - stats.completed} в работе · {stats.completed} выполнено
+              </span>
+            </div>
+            <h2 id="today-goals-heading" className="today-goals-title">Задачи на сегодня</h2>
+            <p className="today-goals-hint">Выполняйте дела в удобном ритме. Невыполненные задачи после этой даты появятся в просроченных.</p>
+            <div className="today-goals-columns">
+              <span>ЗАДАЧИ / {String(dayTasks.length).padStart(2, '0')}</span>
+              <span>ВРЕМЯ / ДЕЙСТВИЯ</span>
+            </div>
+            <div className="task-list today-goals-list">
+              {dayTasks.map((task, index) => renderTask(task, index))}
+            </div>
+          </div>
+        </section>
       ) : (
-        <div className="task-list">
-          {dayTasks.map((task, index) => renderTask(task, index))}
-        </div>
+        <>
+          <div className="task-list-header">
+            <span className="eyebrow">ЗАДАЧИ / {String(dayTasks.length).padStart(2, '0')}</span>
+            <span className="eyebrow">ВРЕМЯ / ДЕЙСТВИЯ</span>
+          </div>
+          <div className="task-list">
+            {dayTasks.map((task, index) => renderTask(task, index))}
+          </div>
+        </>
       )}
       <div className="page-footer-line"><span>ВРЕМЯ — ДОВЕРЕННОЕ БЛАГО</span><span>© ПЛАНЕР</span></div>
     </section>

@@ -825,3 +825,119 @@ body { background-color: var(--paper); }
   .status-lamp { animation: none; }
   .overdue-toggle-chevron { transition: none; }
 }
+
+
+/* Today tasks gradient group, 26 Oct 2026 */
+.today-goals-section {
+  margin: 28px 0 42px;
+  min-width: 0;
+}
+.today-goals-hero {
+  padding: 26px 30px 14px;
+  border: 1px solid #b5d3be;
+  border-radius: 44px;
+  background: linear-gradient(115deg, #f4fbf4 0%, #e6f3e9 53%, #d7ebdc 100%);
+  color: #315b40;
+  min-width: 0;
+  max-width: 100%;
+}
+.today-goals-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px 16px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.today-goals-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #396c50;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .1em;
+}
+.today-goals-count {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 13px;
+  border: 1px solid rgba(57,108,80,.23);
+  border-radius: 999px;
+  background: rgba(255,255,255,.55);
+  color: #396c50;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: normal;
+}
+.today-goals-title {
+  margin: 0 0 7px;
+  color: #315b40;
+  font: 500 clamp(34px, 4.3vw, 54px)/1.07 'Cormorant Garamond', Georgia, serif;
+  letter-spacing: -.025em;
+  overflow-wrap: anywhere;
+}
+.today-goals-hint {
+  margin: 0 0 22px;
+  max-width: 680px;
+  color: #54745e;
+  font-size: 13px;
+  line-height: 1.65;
+}
+.today-goals-columns {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 15px 0;
+  border-top: 1px solid #b5d3be;
+  color: #52725c;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .1em;
+}
+.today-goals-list {
+  border-top: 1px solid #94b5a0;
+  background: transparent;
+}
+.today-goals-list .task-item {
+  border-bottom: 1px solid #b5d3be;
+  min-width: 0;
+  max-width: 100%;
+}
+.today-goals-list .task-item:last-child {
+  border-bottom: 0;
+}
+.today-goals-list .task-item:hover {
+  background: rgba(255,255,255,.22);
+}
+.today-goals-list .task-item:not(.is-complete) .task-title,
+.today-goals-list .task-item:not(.is-complete) .task-time {
+  color: #315b40;
+}
+.today-goals-list .task-item.is-complete .task-title {
+  color: #527c60;
+}
+.today-goals-list .task-item .task-meta {
+  color: #52725c;
+}
+.today-goals-list .task-item .task-actions,
+.today-goals-list .task-item .task-details,
+.today-goals-list .task-item .task-right {
+  min-width: 0;
+}
+@media (max-width: 760px) {
+  .today-goals-section { margin: 22px 0 35px; }
+  .today-goals-hero { padding: 21px 19px 9px; border-radius: 30px; }
+  .today-goals-meta { align-items: flex-start; gap: 8px; }
+  .today-goals-title { font-size: clamp(31px, 7.2vw, 43px); }
+  .today-goals-hint { font-size: 12px; margin-bottom: 16px; }
+  .today-goals-columns { font-size: 9px; letter-spacing: .07em; }
+  .today-goals-count { font-size: 10px; }
+  .today-goals-list .task-item { padding-block: 19px; }
+}
+@media (max-width: 380px) {
+  .today-goals-hero { padding: 17px 13px 7px; border-radius: 25px; }
+  .today-goals-title { font-size: 30px; }
+  .today-goals-columns { gap: 6px; }
+}
