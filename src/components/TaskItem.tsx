@@ -24,9 +24,10 @@ export function TaskItem({
 }: TaskItemProps) {
   const [rescheduling, setRescheduling] = useState(false);
   const isOverdue = !task.completed && task.date < toDateKey(today());
+  const isActive = !task.completed && !isOverdue;
 
   return (
-    <div className={`task-item ${task.completed ? 'is-complete' : ''} ${isOverdue ? 'is-overdue' : ''}`}>
+    <div className={`task-item ${task.completed ? 'is-complete' : ''} ${isOverdue ? 'is-overdue' : ''} ${isActive ? 'is-active-goal' : ''}`}>
       <span className="task-index" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
       <label className="task-check-label">
         <input
@@ -39,6 +40,12 @@ export function TaskItem({
         <span className="task-checkbox" aria-hidden="true">{task.completed ? '✓' : ''}</span>
       </label>
       <div className="task-details">
+        {(isOverdue || isActive) && (
+          <span className={`task-status ${isOverdue ? 'task-status-overdue' : 'task-status-active'}`}>
+            <span className={`status-lamp ${isOverdue ? 'lamp-overdue' : ''}`} aria-hidden="true" />
+            {isOverdue ? 'ПРОСРОЧЕНО' : 'В ПЛАНЕ'}
+          </span>
+        )}
         <div className="task-title">{task.title}</div>
         <div className="task-meta">
           {showOriginalDate && (

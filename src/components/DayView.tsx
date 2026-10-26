@@ -14,6 +14,7 @@ interface DayViewProps extends TaskActions {
 export function DayView({ date, tasks, onChangeDate, addTask, updateTask, rescheduleTask, deleteTask, toggleTask }: DayViewProps) {
   const [editing, setEditing] = useState<string | 'new' | null>(null);
   const [rescheduleNotice, setRescheduleNotice] = useState('');
+  const [overdueExpanded, setOverdueExpanded] = useState(false);
   const key = toDateKey(date);
   const todayKey = toDateKey(today());
   const dayTasks = useMemo(() => sortTasks(tasks.filter((task) => task.date === key)), [tasks, key]);
@@ -25,7 +26,7 @@ export function DayView({ date, tasks, onChangeDate, addTask, updateTask, resche
   const stats = getTaskStats(dayTasks);
   const showOverdue = key === todayKey;
 
-  useEffect(() => { setEditing(null); setRescheduleNotice(''); }, [key]);
+  useEffect(() => { setEditing(null); setRescheduleNotice(''); setOverdueExpanded(false); }, [key]);
 
   function handleReschedule(id: string, targetDate: string) {
     const task = tasks.find((item) => item.id === id);
@@ -96,23 +97,43 @@ export function DayView({ date, tasks, onChangeDate, addTask, updateTask, resche
 
       {showOverdue && overdueTasks.length > 0 && (
         <section className="overdue-section" aria-labelledby="overdue-tasks-heading">
-          <div className="overdue-header">
-            <div>
-              <span className="eyebrow overdue-kicker">ТРЕБУЮТ ВНИМАНИЯ</span>
-              <h2 id="overdue-tasks-heading" className="overdue-title">
-                Просроченные задачи <span>({overdueTasks.length})</span>
-              </h2>
-              <p className="overdue-hint">Перенесите невыполненные дела на удобную дату или отметьте их выполненными.</p>
+          <div className="overdue-hero">
+            <div className="overdue-hero-meta">
+              <span className="overdue-hero-label">
+                <span className="overdue-warning-dot" aria-hidden="true" />
+                ТРЕБУЮТ ВНИМАНИЯ
+              </span>
+              <span className="overdue-hero-count">{overdueTasks.length} просрочено</span>
             </div>
+            <h2 id="overdue-tasks-heading" className="overdue-title">Просроченные задачи</h2>
+            <p className="overdue-hint">Перенесите невыполненные дела на удобную дату или отметьте их выполненными.</p>
+            <button
+              type="button"
+              className="overdue-toggle"
+              aria-expanded={overdueExpanded}
+              aria-controls="overdue-task-list"
+              onClick={() => setOverdueExpanded((expanded) => !expanded)}
+            >
+              <span>{overdueExpanded ? 'Свернуть список' : 'Развернуть список задач'}</span>
+              <span className={`overdue-toggle-chevron ${overdueExpanded ? 'expanded' : ''}`} aria-hidden="true">⌄</span>
+            </button>
           </div>
-          <div className="task-list overdue-task-list">
+          <div id="overdue-task-list" className="task-list overdue-task-list" hidden={!overdueExpanded}>
             {overdueTasks.map((task, index) => renderTask(task, index, true))}
           </div>
         </section>
       )}
 
       <div className="task-list-header">
-        <span className="eyebrow">ЗАДАЧИ / {String(dayTasks.length).padStart(2, '0')}</span>
+        <div className="today-tasks-label">
+          <span className="eyebrow">ЗАДАЧИ / {String(dayTasks.length).padStart(2, '0')}</span>
+          {dayTasks.some((task) => !task.completed && task.date >= todayKey) && (
+            <span className="on-track-indicator">
+              <span className="status-lamp" aria-hidden="true" />
+              АКТУАЛЬНЫЕ ЦЕЛИ
+            </span>
+          )}
+        </div>
         <span className="eyebrow">ВРЕМЯ / ДЕЙСТВИЯ</span>
       </div>
       {dayTasks.length === 0 ? (
