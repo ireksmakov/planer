@@ -941,3 +941,38 @@ body { background-color: var(--paper); }
   .today-goals-title { font-size: 30px; }
   .today-goals-columns { gap: 6px; }
 }
+
+/* Today's green panel stays visible below overdue tasks, even when empty. */
+.today-goals-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 24px 0 27px;
+  border-top: 1px solid #b5d3be;
+  color: #315b40;
+}
+.today-goals-empty > .eyebrow { color: #54745e; }
+.today-goals-empty p {
+  margin: 0;
+  font: 500 clamp(25px, 3vw, 36px)/1.1 'Cormorant Garamond', Georgia, serif;
+  color: #315b40;
+}
+.today-goals-add {
+  margin-top: 5px;
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid #396c50;
+  border-radius: 3px;
+  background: #396c50;
+  color: #fffdf8;
+  font-size: 13px;
+  font-weight: 700;
+}
+.today-goals-add:hover { opacity: .85; }
+.today-goals-add:focus-visible { outline: 2px solid #396c50; outline-offset: 2px; }
+.overdue-section + .today-goals-section { margin-top: 18px; }
+@media (max-width: 760px) {
+  .overdue-section + .today-goals-section { margin-top: 16px; }
+  .today-goals-empty { padding-block: 20px; }
+}
