@@ -1054,3 +1054,8 @@ body { background-color: var(--paper); }
   .update-banner, .update-banner-button { width: 100%; }
   .update-banner-button { text-align: center; }
 }
+/* Compact day view: the large repeated date and introductory text were removed. */
+.day-page { padding-top: 24px; }
+@media (max-width: 760px) {
+  .day-page { padding-top: 14px; }
+}

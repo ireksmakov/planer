@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Task, TaskActions } from '../types';
-import { capitalize, dateLabel, fromDateKey, getTaskStats, shiftDay, sortTasks, toDateKey, today } from '../utils/date';
+import { dateLabel, fromDateKey, getTaskStats, shiftDay, sortTasks, toDateKey, today } from '../utils/date';
 import { ProgressLine } from './ProgressLine';
 import { TaskForm } from './TaskForm';
 import { TaskItem } from './TaskItem';
@@ -65,20 +65,7 @@ export function DayView({ date, tasks, onChangeDate, addTask, updateTask, resche
   }
 
   return (
-    <section className="page-section day-page" aria-labelledby="day-title">
-      <div className="section-intro">
-        <div>
-          <span className="eyebrow">ДЕНЬ С ДОБРЫМ НАМЕРЕНИЕМ / {dateLabel(date, 'yyyy')}</span>
-          <h1 id="day-title" className="display-heading">{capitalize(dateLabel(date, 'EEEE'))}<span className="heading-comma">,</span><br />{dateLabel(date, 'd MMMM')}</h1>
-          <p className="section-deck">Начните с доброго намерения — и уделите время главному.</p>
-        </div>
-        <div className="section-aside">
-          <span className="eyebrow">ДЕНЬ ГОДА</span>
-          <span className="aside-number">{dateLabel(date, 'DDD').padStart(3, '0')}</span>
-          <span className="aside-caption">В каждом дне есть благо.</span>
-        </div>
-      </div>
-
+    <section className="page-section day-page" aria-label="План на день">
       <div className="section-toolbar">
         <div className="date-navigation">
           <button type="button" className="navigation-link" onClick={() => onChangeDate(shiftDay(date, -1))}>← пред.</button>
