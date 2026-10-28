@@ -40,6 +40,10 @@ export function CloudSync({ tasks, replaceAllTasks }: {
   const cloudIds = useRef(new Set<string>());
   const previous = useRef(new Map<string, string>());
   const inflight = useRef(false);
+  const connectedRef = useRef(false);
+  const snapshotRef = useRef<Snapshot | null>(null);
+  const applyingRemote = useRef(false);
+  snapshotRef.current = snapshot;
 
   const refresh = async (currentToken: string, apply = true) => {
     const data = await request<Snapshot>('/api/tasks', currentToken);
@@ -77,6 +81,7 @@ export function CloudSync({ tasks, replaceAllTasks }: {
 
   // Once imported or explicitly loaded, sync individual task changes with a version check.
   const [connected, setConnected] = useState(false);
+  connectedRef.current = connected;
   useEffect(() => {
     if (!connected || !snapshot || !token) return;
     const timer = window.setTimeout(async () => {
@@ -102,6 +107,58 @@ export function CloudSync({ tasks, replaceAllTasks }: {
     return () => window.clearTimeout(timer);
   }, [tasks, connected, snapshot, token]);
 
+  // Poll only while connected; never replace local edits awaiting upload.
+  useEffect(() => {
+    if (!connected || !token) return;
+    let cancelled = false;
+    const pull = async () => {
+      if (cancelled || inflight.current || applyingRemote.current) return;
+      const baseline = snapshotRef.current;
+      if (!baseline) return;
+      const local = tasksRef.current;
+      const hasPending = local.length !== cloudIds.current.size ||
+        local.some(task => previous.current.get(task.id) !== JSON.stringify(task));
+      if (hasPending) return;
+      inflight.current = true;
+      try {
+        const data = await request<Snapshot>('/api/tasks', token);
+        if (cancelled || !connectedRef.current) return;
+        if (data.version !== snapshotRef.current?.version) {
+          // A user may edit during the network request: preserve their local changes.
+          const current = tasksRef.current;
+          const changed = current.length !== cloudIds.current.size ||
+            current.some(task => previous.current.get(task.id) !== JSON.stringify(task));
+          if (changed) return;
+          applyingRemote.current = true;
+          setSnapshot(data);
+          snapshotRef.current = data;
+          cloudIds.current = new Set(data.tasks.map(t => t.id));
+          previous.current = new Map(data.tasks.map(t => [t.id, JSON.stringify(t)]));
+          replaceAllTasks(data.tasks);
+          setError('');
+          applyingRemote.current = false;
+        }
+      } catch (e) {
+        if (!cancelled) setError('Автоматическое обновление: ' + String(e));
+      } finally {
+        inflight.current = false;
+      }
+    };
+    const interval = window.setInterval(() => { if (document.visibilityState === 'visible' && navigator.onLine) void pull(); }, 10000);
+    const onFocus = () => { if (navigator.onLine) void pull(); };
+    const onVisible = () => { if (document.visibilityState === 'visible') void pull(); };
+    window.addEventListener('focus', onFocus);
+    window.addEventListener('online', onFocus);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('online', onFocus);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [connected, token]);
+
   const run = async (job: () => Promise<void>) => {
     setBusy(true); setError('');
     try { await job(); } catch (e) { setError(String(e)); } finally { setBusy(false); }
@@ -126,7 +183,7 @@ export function CloudSync({ tasks, replaceAllTasks }: {
         <button disabled={busy || !snapshot} onClick={openCloud}>Открыть облачные задачи</button>
         <button onClick={signOut}>Выйти</button>
       </> : <>
-        <span>Облачная синхронизация подключена · {snapshot?.tasks.length ?? 0} задач</span>
+        <span>Автосинхронизация включена · {snapshot?.tasks.length ?? 0} задач</span>
         <button disabled={busy} onClick={() => void run(async () => {
           if (inflight.current) throw Error('Сначала завершите синхронизацию изменений');
           await refresh(token);
