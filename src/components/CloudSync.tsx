@@ -116,7 +116,7 @@ export function CloudSync({ tasks, replaceAllTasks }: {
   });
   const openCloud = () => run(async () => { await refresh(token); setConnected(true); });
   const signOut = () => { setToken(''); setSnapshot(null); setConnected(false); sessionStorage.removeItem(TOKEN_KEY); };
-  if (!CLIENT_ID) return <div className="cloud-strip">Облачная синхронизация: ожидается настройка Google Client ID на сервере.</div>;
+  if (!CLIENT_ID) return null;
 
   return <section className="cloud-strip" aria-label="Синхронизация задач">
     {!token ? <><span>Задачи пока сохраняются только на этом устройстве.</span><div ref={buttonRef} /></> :

@@ -15,10 +15,11 @@
 ```bash
 python3 -m venv /opt/planer-api/venv
 /opt/planer-api/venv/bin/pip install -r /opt/planer-source/server/requirements.txt
-install -d -m 700 /opt/planer-api/data
+id planer >/dev/null 2>&1 || useradd --system --home-dir /opt/planer-api --shell /usr/sbin/nologin planer
+install -d -o planer -g planer -m 700 /opt/planer-api/data
 ```
 
-Создайте файл `/etc/planer-api.env` с режимом 0600:
+Создайте файл `/etc/planer-api.env` с владельцем root и режимом 0600. Сервис читает его через systemd (содержимое не публикуется в GitHub):
 
 ```ini
 GOOGLE_CLIENT_ID=ВАШ_WEB_CLIENT_ID.apps.googleusercontent.com
