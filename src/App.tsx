@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { ViewMode } from './types';
 import { useTasks } from './hooks/useTasks';
 import { Header } from './components/Header';
+import { CloudSync } from './components/CloudSync';
 import { DayView } from './components/DayView';
 import { WeekView } from './components/WeekView';
 import { MonthView } from './components/MonthView';
@@ -67,6 +68,7 @@ export default function App() {
   return (
     <div className="app-shell">
       <Header view={view} onChangeView={setView} />
+      <CloudSync tasks={taskStore.tasks} replaceAllTasks={taskStore.replaceAllTasks} />
       {updateAvailable && (
         <div className="update-banner" role="status">
           <span>Вышла новая версия Планера. Ваши задачи сохранятся.</span>

@@ -1,0 +1,18 @@
+[Unit]
+Description=Planer API (independent of static-tradingbot)
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/planer-source
+EnvironmentFile=/etc/planer-api.env
+ExecStart=/opt/planer-api/venv/bin/uvicorn server.app:app --host 127.0.0.1 --port 3001 --workers 1
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=full
+ReadWritePaths=/opt/planer-api/data
+
+[Install]
+WantedBy=multi-user.target
