@@ -32,9 +32,7 @@ export function CloudSync({ tasks, replaceAllTasks }: {
   const [token, setToken] = useState(() => sessionStorage.getItem(TOKEN_KEY) || '');
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
   const buttonRef = useRef<HTMLDivElement>(null);
-  const originalLocal = useRef<Task[]>(readLocalTasks());
   const tasksRef = useRef(tasks);
   tasksRef.current = tasks;
   const cloudIds = useRef(new Set<string>());
@@ -44,15 +42,6 @@ export function CloudSync({ tasks, replaceAllTasks }: {
   const snapshotRef = useRef<Snapshot | null>(null);
   const applyingRemote = useRef(false);
   snapshotRef.current = snapshot;
-
-  const refresh = async (currentToken: string, apply = true) => {
-    const data = await request<Snapshot>('/api/tasks', currentToken);
-    setSnapshot(data);
-    cloudIds.current = new Set(data.tasks.map(t => t.id));
-    previous.current = new Map(data.tasks.map(t => [t.id, JSON.stringify(t)]));
-    if (apply) replaceAllTasks(data.tasks);
-    return data;
-  };
 
   useEffect(() => {
     if (!CLIENT_ID || token) return;
@@ -73,9 +62,44 @@ export function CloudSync({ tasks, replaceAllTasks }: {
     return () => { script.remove(); };
   }, [token]);
 
+  // On first sign-in on this device, merge local records once. Later sign-ins
+  // only download the server snapshot, so deleted cloud records aren't resurrected.
   useEffect(() => {
-    if (!token) return;
-    void refresh(token, false).catch(e => { setError(String(e)); setToken(''); sessionStorage.removeItem(TOKEN_KEY); });
+    if (!token) { setConnected(false); return; }
+    let cancelled = false;
+    setConnected(false);
+    const initialize = async () => {
+      try {
+        const claims = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))) as { sub?: string };
+        if (!claims.sub) throw Error('Не удалось прочитать идентификатор Google');
+        const marker = 'planer.cloud.imported.' + claims.sub;
+        const local = readLocalTasks();
+        const imported = localStorage.getItem(marker) === 'yes';
+        const data = !imported && local.length
+          ? await request<Snapshot>('/api/import', token, 'POST', { tasks: local })
+          : await request<Snapshot>('/api/tasks', token);
+        if (cancelled) return;
+        // Preserve an on-device copy before applying the cloud snapshot.
+        if (!imported && local.length) {
+          localStorage.setItem('planer.cloud.backup.' + claims.sub, JSON.stringify(local));
+        }
+        localStorage.setItem(marker, 'yes');
+        cloudIds.current = new Set(data.tasks.map(t => t.id));
+        previous.current = new Map(data.tasks.map(t => [t.id, JSON.stringify(t)]));
+        snapshotRef.current = data;
+        setSnapshot(data);
+        replaceAllTasks(data.tasks);
+        setConnected(true);
+        setError('');
+      } catch (e) {
+        if (!cancelled) {
+          setError('Синхронизация не запущена: ' + String(e));
+          setConnected(false);
+        }
+      }
+    };
+    void initialize();
+    return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
@@ -159,35 +183,13 @@ export function CloudSync({ tasks, replaceAllTasks }: {
     };
   }, [connected, token]);
 
-  const run = async (job: () => Promise<void>) => {
-    setBusy(true); setError('');
-    try { await job(); } catch (e) { setError(String(e)); } finally { setBusy(false); }
-  };
-  const importLocal = () => run(async () => {
-    // Capture initial local tasks before switching to cloud.
-    const local = originalLocal.current;
-    const data = await request<Snapshot>('/api/import', token, 'POST', { tasks: local });
-    setSnapshot(data); cloudIds.current = new Set(data.tasks.map(t => t.id));
-    previous.current = new Map(data.tasks.map(t => [t.id, JSON.stringify(t)]));
-    replaceAllTasks(data.tasks); setConnected(true);
-  });
-  const openCloud = () => run(async () => { await refresh(token); setConnected(true); });
   const signOut = () => { setToken(''); setSnapshot(null); setConnected(false); sessionStorage.removeItem(TOKEN_KEY); };
   if (!CLIENT_ID) return null;
 
   return <section className="cloud-strip" aria-label="Синхронизация задач">
     {!token ? <><span>Задачи пока сохраняются только на этом устройстве.</span><div ref={buttonRef} /></> :
-      !connected ? <>
-        <span>Google подключён. В облаке {snapshot?.tasks.length ?? '…'} задач; на этом устройстве {originalLocal.current.length}.</span>
-        <button disabled={busy || !snapshot} onClick={importLocal}>Объединить местные задачи с облачными</button>
-        <button disabled={busy || !snapshot} onClick={openCloud}>Открыть облачные задачи</button>
-        <button onClick={signOut}>Выйти</button>
-      </> : <>
+      !connected ? <><span>Подключаем облачные задачи…</span><button onClick={signOut}>Выйти</button></> : <>
         <span>Автосинхронизация включена · {snapshot?.tasks.length ?? 0} задач</span>
-        <button disabled={busy} onClick={() => void run(async () => {
-          if (inflight.current) throw Error('Сначала завершите синхронизацию изменений');
-          await refresh(token);
-        })}>Обновить с сервера</button>
         <button onClick={signOut}>Выйти</button>
       </>}
     {error && <span role="alert" className="cloud-error">{error}</span>}
