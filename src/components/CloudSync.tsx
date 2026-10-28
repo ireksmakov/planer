@@ -75,12 +75,15 @@ export function CloudSync({ tasks, replaceAllTasks }: {
         const marker = 'planer.cloud.imported.' + claims.sub;
         const local = readLocalTasks();
         const imported = localStorage.getItem(marker) === 'yes';
-        const data = !imported && local.length
+        // Never import another signed-in user's shared localStorage into this account.
+        const knownAccount = Object.keys(localStorage).some(key => key.startsWith('planer.cloud.imported.') && key !== marker);
+        const legacyImport = !imported && !knownAccount && local.length > 0;
+        const data = legacyImport
           ? await request<Snapshot>('/api/import', token, 'POST', { tasks: local })
           : await request<Snapshot>('/api/tasks', token);
         if (cancelled) return;
         // Preserve an on-device copy before applying the cloud snapshot.
-        if (!imported && local.length) {
+        if (legacyImport) {
           localStorage.setItem('planer.cloud.backup.' + claims.sub, JSON.stringify(local));
         }
         localStorage.setItem(marker, 'yes');
@@ -183,7 +186,17 @@ export function CloudSync({ tasks, replaceAllTasks }: {
     };
   }, [connected, token]);
 
-  const signOut = () => { setToken(''); setSnapshot(null); setConnected(false); sessionStorage.removeItem(TOKEN_KEY); };
+  const signOut = () => {
+    // Keep account data on the server, never leave it visible in shared device storage.
+    setConnected(false);
+    setSnapshot(null);
+    snapshotRef.current = null;
+    cloudIds.current.clear();
+    previous.current.clear();
+    replaceAllTasks([]);
+    setToken('');
+    sessionStorage.removeItem(TOKEN_KEY);
+  };
   if (!CLIENT_ID) return null;
 
   return <section className="cloud-strip" aria-label="Синхронизация задач">
