@@ -1,4 +1,4 @@
-export type ViewMode = 'day' | 'week' | 'month';
+export type ViewMode = 'day' | 'week' | 'month' | 'ramadan';
 export type TaskPriority = 'low' | 'medium' | 'high';
 
 export interface Task {

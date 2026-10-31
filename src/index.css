@@ -1064,3 +1064,40 @@ body { background-color: var(--paper); }
 .cloud-strip button { min-height:38px; border:1px solid #396c50; padding:6px 12px; color:#315b40; background:#f7f4ef; cursor:pointer; border-radius:3px; }
 .cloud-strip button:disabled {opacity:.5;cursor:not-allowed}
 .cloud-error {width:100%;color:#a53832}
+
+/* Ramadan planning */
+.ramadan-hero { position:relative; overflow:hidden; background:linear-gradient(120deg,#12372e,#285a45); color:#fffdf8; padding:45px; border:1px solid #ad8c51; }
+.ramadan-hero .eyebrow { color:#d8b878; }
+.ramadan-hero h1 { font-family:'Cormorant Garamond',Georgia,serif; font-size:clamp(64px,9vw,110px); margin:12px 0; line-height:1; font-weight:500; }
+.ramadan-hero h1 span { color:#d8b878; }
+.ramadan-hero p { color:#e4e4d5; line-height:1.8; margin:0; }
+.ramadan-arabic { display:block; color:#d8b878; font-family:'Amiri',serif; font-size:32px; margin-top:18px; }
+.ramadan-setup { padding:25px 0; display:flex; gap:14px; align-items:center; flex-wrap:wrap; border-bottom:1px solid #ddd3bd; }
+.ramadan-setup label { color:#193b32; font-weight:700; }
+.ramadan-setup input { padding:10px; border:1px solid #a99b80; background:#fffdf8; max-width:100%; border-radius:4px; }
+.ramadan-setup p { width:100%; color:#596e62; font-size:12px; line-height:1.7; margin:0; }
+.ramadan-empty { padding:65px 10px; text-align:center; color:#596e62; }
+.ramadan-summary { display:flex; gap:38px; padding:30px 0; }
+.ramadan-summary>div { display:flex; flex-direction:column; gap:7px; }
+.ramadan-summary strong { font-size:25px; color:#193b32; }
+.ramadan-days { display:grid; grid-template-columns:repeat(10,minmax(0,1fr)); gap:8px; }
+.ramadan-day { min-width:0; border:1px solid #c8d5c6; border-radius:15px; background:linear-gradient(145deg,#f1faf2,#deeadf); color:#285942; padding:13px 4px; display:flex; flex-direction:column; align-items:center; gap:5px; }
+.ramadan-day.active { background:linear-gradient(140deg,#12372e,#327252); border-color:#c1a467; color:#fff; }
+.ramadan-day strong { font-family:'Cormorant Garamond',Georgia,serif; font-size:30px; line-height:1; }
+.ramadan-day span,.ramadan-day small { font-size:10px; }
+.ramadan-day-count { font-weight:700; }
+.ramadan-work { margin-top:32px; border:1px solid #b8d6c0; border-radius:28px; padding:30px; background:linear-gradient(120deg,#f1faf2,#dcefe0); }
+.ramadan-work-heading { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+.ramadan-work h2 { font-family:'Cormorant Garamond',Georgia,serif; font-size:54px; font-weight:500; margin:8px 0; }
+.ramadan-work-heading p,.ramadan-hint { color:#596e62; font-size:13px; }
+.ramadan-add-button,.ramadan-custom button { border:0; border-radius:20px; background:#285d42; color:white; padding:13px 18px; }
+.ramadan-checklist { margin:18px 0; border-top:1px solid #b8d6c0; }
+.ramadan-task { display:flex; gap:14px; justify-content:space-between; align-items:center; border-bottom:1px solid #b8d6c0; padding:15px 0; }
+.ramadan-task label { display:flex; gap:12px; align-items:center; min-width:0; overflow-wrap:anywhere; }
+.ramadan-task input { accent-color:#285d42; width:20px; height:20px; flex:none; }
+.ramadan-task .done { text-decoration:line-through; opacity:.55; }
+.ramadan-task button { border:0; background:transparent; color:#9e463f; text-decoration:underline; }
+.ramadan-custom { display:flex; gap:10px; }
+.ramadan-custom input { flex:1; min-width:0; border:1px solid #b8d6c0; background:#fffdf8; padding:12px; border-radius:8px; }
+@media(max-width:900px){.ramadan-days{grid-template-columns:repeat(6,minmax(0,1fr));}}
+@media(max-width:540px){.view-tabs{gap:10px; justify-content:space-between;}.view-tab{font-size:11px; gap:3px;}.tab-number{font-size:8px;}.ramadan-hero{padding:28px 22px;}.ramadan-days{grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;}.ramadan-day{padding:9px 2px;border-radius:11px;}.ramadan-day strong{font-size:25px;}.ramadan-work{padding:18px;border-radius:20px;}.ramadan-work h2{font-size:43px;}.ramadan-custom{flex-wrap:wrap;}.ramadan-custom button{width:100%;}}

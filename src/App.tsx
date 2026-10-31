@@ -6,6 +6,7 @@ import { CloudSync } from './components/CloudSync';
 import { DayView } from './components/DayView';
 import { WeekView } from './components/WeekView';
 import { MonthView } from './components/MonthView';
+import { RamadanView } from './components/RamadanView';
 
 // During GitHub Pages builds this value is set to the commit SHA.
 const APP_VERSION = import.meta.env.VITE_APP_VERSION as string | undefined;
@@ -84,6 +85,7 @@ export default function App() {
         {view === 'week' && (
           <WeekView date={selectedDate} onChangeDate={setSelectedDate} onOpenDay={openDay} {...taskStore} />
         )}
+        {view === 'ramadan' && <RamadanView {...taskStore} />}
         {view === 'month' && (
           <MonthView date={selectedDate} onChangeDate={setSelectedDate} onOpenDay={openDay} tasks={taskStore.tasks} />
         )}
