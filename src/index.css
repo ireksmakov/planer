@@ -1119,3 +1119,15 @@ body { background-color: var(--paper); }
 .ramadan-resource a{margin-top:auto;color:#275e43;text-decoration:underline;text-underline-offset:4px;font-weight:700}
 .ramadan-library-note{font-size:12px;color:#596e62;line-height:1.6;margin:18px 0}
 @media(max-width:650px){.ramadan-resources{grid-template-columns:1fr}.ramadan-resource{padding:20px}.ramadan-subtabs button{flex:1;font-size:12px;padding:12px 8px}}
+
+
+.ramadan-plan-actions,.ramadan-task-buttons{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.ramadan-copy-button{border:1px solid #285d42;border-radius:20px;background:transparent;color:#285d42;padding:12px 16px;font-weight:600}
+.ramadan-copy-button:disabled{opacity:.45;cursor:not-allowed}
+.ramadan-task-buttons button{font-size:12px;padding:6px;background:transparent;border:0;color:#285d42;text-decoration:underline;text-underline-offset:3px}
+.ramadan-task-buttons button:last-child{color:#9e463f}
+.ramadan-edit{display:flex;flex:1;flex-wrap:wrap;gap:8px}
+.ramadan-edit input{flex:1;min-width:120px;padding:10px;border-radius:8px;border:1px solid #91b9a2;background:white}
+.ramadan-edit button{border:1px solid #285d42;color:#285d42;background:transparent;border-radius:8px;padding:9px}
+.ramadan-edit button[type=submit]{background:#285d42;color:white}
+@media(max-width:540px){.ramadan-plan-actions{width:100%}.ramadan-plan-actions button{flex:1}.ramadan-task{align-items:flex-start}.ramadan-task-buttons{justify-content:flex-end}.ramadan-task label{flex:1}}
