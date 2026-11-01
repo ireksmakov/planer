@@ -6,14 +6,16 @@ import { ru } from 'date-fns/locale';
 
 const START_KEY = 'planer.ramadan.start.v1';
 const CATEGORY = 'Рамадан';
-const HABITS = ['Намаз вовремя', 'Чтение Корана', 'Дуа и зикр', 'Доброе дело / садака', 'Размышление и благодарность'];
+const SAMPLE = ['Тахаджуд намаз', 'Витр намаз', 'Сунна намаз', 'Фаджр намаз', 'Зикры', 'Чтение Корана', 'Моя цель (измените)', 'Садака', 'Два ракаата намаза после восхода солнца', 'Духа намаз'];
 
 type Props = { tasks: Task[] } & TaskActions;
 
-export function RamadanView({ tasks, addTask, toggleTask, deleteTask }: Props) {
+export function RamadanView({ tasks, addTask, updateTask, toggleTask, deleteTask }: Props) {
   const [start, setStart] = useState(() => localStorage.getItem(START_KEY) || '');
   const [selected, setSelected] = useState(0);
   const [customTitle, setCustomTitle] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState('');
   const [section, setSection] = useState<'plan'|'library'>('plan');
   const base = useMemo(() => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(start)) return null;
@@ -37,8 +39,23 @@ export function RamadanView({ tasks, addTask, toggleTask, deleteTask }: Props) {
     if (!dayKey || !title.trim()) return;
     addTask({ title: title.trim(), category: CATEGORY, date: dayKey, time: '', priority: 'medium' });
   };
-  const addHabits = () => {
-    for (const habit of HABITS) if (!dayTasks.some(t => t.title === habit)) createTask(habit);
+  const fillSample = () => {
+    for (const title of SAMPLE) if (!dayTasks.some(t => t.title === title)) createTask(title);
+  };
+  const copyNextDay = () => {
+    const next = dates[selected + 1];
+    if (!next) return;
+    const existing = ramadanTasks.filter(t => t.date === next);
+    for (const task of dayTasks) {
+      if (existing.some(t => t.title === task.title && t.time === task.time)) continue;
+      addTask({ title: task.title, date: next, time: task.time, priority: task.priority, category: CATEGORY });
+    }
+    setSelected(selected + 1);
+  };
+  const saveEdit = (task: Task) => {
+    if (!editTitle.trim()) return;
+    updateTask(task.id, { title: editTitle.trim(), date: task.date, time: task.time, priority: task.priority, category: task.category });
+    setEditingId(null);
   };
 
   return <section className="ramadan-page page-section">
@@ -73,13 +90,25 @@ export function RamadanView({ tasks, addTask, toggleTask, deleteTask }: Props) {
       <div className="ramadan-work">
         <div className="ramadan-work-heading">
           <div><span className="eyebrow">ПЛАН ПОКЛОНЕНИЯ И ДОБРЫХ ДЕЛ</span><h2>День {selected + 1}</h2><p>{format(parseISO(dayKey), 'd MMMM yyyy', { locale: ru })} · выполнено {dayDone} из {dayTasks.length}</p></div>
-          <button className="ramadan-add-button" onClick={addHabits}>+ Добавить ежедневные дела</button>
+          <div className="ramadan-plan-actions">
+            <button type="button" className="ramadan-add-button" onClick={fillSample}>+ {dayTasks.length ? 'Дополнить образцом' : 'Заполнить образцом'}</button>
+            {selected < dates.length - 1 && <button type="button" className="ramadan-copy-button" onClick={copyNextDay} disabled={!dayTasks.length}>Копировать на следующий день →</button>}
+          </div>
         </div>
         <div className="ramadan-checklist">
           {dayTasks.length === 0 && <p className="ramadan-hint">Пока задач нет. Добавьте готовые ежедневные дела или свою цель.</p>}
           {dayTasks.map(t => <div className="ramadan-task" key={t.id}>
-            <label><input type="checkbox" checked={t.completed} onChange={() => toggleTask(t.id)} /><span className={t.completed ? 'done' : ''}>{t.title}</span></label>
-            <button type="button" onClick={() => deleteTask(t.id)} aria-label={`Удалить: ${t.title}`}>Удалить</button>
+            {editingId === t.id ? <form className="ramadan-edit" onSubmit={e => {e.preventDefault(); saveEdit(t);}}>
+              <input aria-label="Название задачи" value={editTitle} maxLength={500} autoFocus onChange={e => setEditTitle(e.target.value)} />
+              <button type="submit" disabled={!editTitle.trim()}>Сохранить</button>
+              <button type="button" onClick={() => setEditingId(null)}>Отмена</button>
+            </form> : <>
+              <label><input type="checkbox" checked={t.completed} onChange={() => toggleTask(t.id)} /><span className={t.completed ? 'done' : ''}>{t.title}</span></label>
+              <div className="ramadan-task-buttons">
+                <button type="button" onClick={() => { setEditingId(t.id); setEditTitle(t.title); }}>Изменить</button>
+                <button type="button" onClick={() => deleteTask(t.id)} aria-label={`Удалить: ${t.title}`}>Удалить</button>
+              </div>
+            </>}
           </div>)}
         </div>
         <form className="ramadan-custom" onSubmit={e => { e.preventDefault(); createTask(customTitle); setCustomTitle(''); }}>
