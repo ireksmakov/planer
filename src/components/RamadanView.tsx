@@ -1,3 +1,4 @@
+import { RamadanLibrary } from './RamadanLibrary';
 import { useMemo, useState } from 'react';
 import type { Task, TaskActions } from '../types';
 import { format, addDays, parseISO, isValid } from 'date-fns';
@@ -13,8 +14,9 @@ export function RamadanView({ tasks, addTask, toggleTask, deleteTask }: Props) {
   const [start, setStart] = useState(() => localStorage.getItem(START_KEY) || '');
   const [selected, setSelected] = useState(0);
   const [customTitle, setCustomTitle] = useState('');
+  const [section, setSection] = useState<'plan'|'library'>('plan');
   const base = useMemo(() => {
-    if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(start)) return null;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(start)) return null;
     const date = parseISO(start);
     return isValid(date) && format(date, 'yyyy-MM-dd') === start ? date : null;
   }, [start]);
@@ -46,6 +48,8 @@ export function RamadanView({ tasks, addTask, toggleTask, deleteTask }: Props) {
       <p>Планируйте поклонение, добрые дела и личные цели — день за днём.</p>
       <span lang="ar" dir="rtl" className="ramadan-arabic">رَمَضَانُ مُبَارَكٌ</span>
     </div>
+    <nav className="ramadan-subtabs" aria-label="Разделы Рамадана"><button type="button" className={section === "plan" ? "active" : ""} onClick={() => setSection("plan")}>☾ План на Рамадан</button><button type="button" className={section === "library" ? "active" : ""} onClick={() => setSection("library")}>▤ Библиотека и дуа</button></nav>
+    {section === "library" ? <RamadanLibrary /> : <>
     <div className="ramadan-setup">
       <label htmlFor="ramadan-start">Первый день Рамадана (по местному объявлению)</label>
       <input id="ramadan-start" type="date" value={start} onChange={e => saveStart(e.target.value)} />
@@ -83,6 +87,7 @@ export function RamadanView({ tasks, addTask, toggleTask, deleteTask }: Props) {
           <button type="submit" disabled={!customTitle.trim()}>Добавить</button>
         </form>
       </div>
+    </>}
     </>}
     <footer className="page-footer-line"><span>ВРЕМЯ — ДОВЕРЕННОЕ БЛАГО</span><span>© ПЛАНЕР</span></footer>
   </section>;
