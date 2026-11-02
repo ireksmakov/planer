@@ -1140,3 +1140,12 @@ body { background-color: var(--paper); }
 .push-enabled {color:var(--completed);font-size:12px;font-weight:700}
 .push-note {color:var(--muted);font-size:11px;line-height:1.5;max-width:280px}
 @media(max-width:600px){.push-settings{width:100%}.push-settings button{min-height:40px}}
+
+/* Opt-in persistent reminders for important tasks. */
+.reminder-repeat-option{display:flex;align-items:flex-start;gap:12px;margin:18px 0 6px;padding:14px;background:#eaf4eb;border:1px solid #bad5c3;border-radius:10px;color:var(--deep);cursor:pointer}
+.reminder-repeat-option input{width:19px;height:19px;margin:2px 0 0;flex:none;accent-color:var(--completed)}
+.reminder-repeat-option:has(input:disabled){opacity:.65;cursor:default}
+.reminder-repeat-option span{display:flex;flex-direction:column;gap:4px}
+.reminder-repeat-option strong{font-size:13px}
+.reminder-repeat-option small{font-size:11px;line-height:1.55;color:var(--muted)}
+.task-reminder-mode{color:var(--completed);font-weight:700}
