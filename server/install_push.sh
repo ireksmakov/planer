@@ -14,8 +14,22 @@ require_dir() {
 }
 require_file /etc/planer-api.env
 require_file /opt/planer-api/venv/bin/python
-require_file /opt/planer-api/app.py
+require_file /opt/planer-source/server/app.py
+require_file /opt/planer-source/server/send_reminders.py
 require_dir /var/www/planer
+actual_workdir="$(systemctl show -p WorkingDirectory --value planer-api)"
+if [ "$actual_workdir" != "/opt/planer-source" ]; then
+  echo "ERROR: работающий planer-api использует другую папку: $actual_workdir"
+  echo "Покажите вывод: systemctl cat planer-api"
+  exit 1
+fi
+push_user="$(systemctl show -p User --value planer-api)"
+if [ -z "$push_user" ] || ! id "$push_user" >/dev/null 2>&1; then
+  echo "ERROR: не удалось определить пользователя службы planer-api"
+  exit 1
+fi
+push_group="$(id -gn "$push_user")"
+echo "Найден API: /opt/planer-source/server/app.py (пользователь $push_user)."
 echo "Окружение проверено. Собираем фронтенд..."
 
 set -a
@@ -24,14 +38,23 @@ set +a
 VITE_GOOGLE_CLIENT_ID="${GOOGLE_CLIENT_ID:-}" npm run build -- --base=/
 
 # Save the existing API before changing anything.
-backup="/opt/planer-api/app.py.bak.$(date +%Y%m%d%H%M%S)"
-cp -a /opt/planer-api/app.py "$backup"
+# The running API imports server.app from /opt/planer-source.
+# Capture a known previously deployed API version for emergency rollback.
+backup="/opt/planer-api/planer-app-pre-push.$(date +%Y%m%d%H%M%S).py"
+if git cat-file -e 195918b:server/app.py 2>/dev/null; then
+  git show 195918b:server/app.py > "$backup"
+else
+  cp -a server/app.py "$backup"
+fi
 /opt/planer-api/venv/bin/python -m pip install -r server/requirements.txt
 install -d -m 700 /etc/planer-push
 if [ ! -f /etc/planer-push/private_key.pem ]; then
   (cd /etc/planer-push && /opt/planer-api/venv/bin/vapid --gen >/dev/null)
 fi
+chown "$push_user:$push_group" /etc/planer-push /etc/planer-push/private_key.pem /etc/planer-push/public_key.pem
+chmod 700 /etc/planer-push
 chmod 600 /etc/planer-push/private_key.pem
+chmod 644 /etc/planer-push/public_key.pem
 # vapid CLI prints "Application Server Key = <key>", not just the key.
 # Extract only the URL-safe base64 value so systemd and JS can read it.
 public_key="$(cd /etc/planer-push && /opt/planer-api/venv/bin/vapid --applicationServerKey | sed -n 's/^Application Server Key = \([A-Za-z0-9_-]*\).*$/\1/p')"
@@ -52,14 +75,13 @@ if ! grep -q '^PUSH_SUBJECT=' /etc/planer-api.env; then
   printf 'PUSH_SUBJECT=https://planer.fizmat-course.com\n' >> /etc/planer-api.env
 fi
 chmod 600 /etc/planer-api.env
-cp -a server/app.py /opt/planer-api/app.py
-cp -a server/send_reminders.py /opt/planer-api/send_reminders.py
-/opt/planer-api/venv/bin/python -m py_compile /opt/planer-api/app.py /opt/planer-api/send_reminders.py
+/opt/planer-api/venv/bin/python -m py_compile server/app.py server/send_reminders.py
 
 if ! systemctl restart planer-api || ! systemctl is-active --quiet planer-api; then
   echo "API update failed; restoring previous API"
-  cp -a "$backup" /opt/planer-api/app.py
+  cp -a "$backup" /opt/planer-source/server/app.py
   systemctl restart planer-api
+  echo "Откат API выполнен; проверьте журнал planer-api."
   exit 1
 fi
 
@@ -71,9 +93,11 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-WorkingDirectory=/opt/planer-api
+User=planer
+Group=planer
+WorkingDirectory=/opt/planer-source
 EnvironmentFile=/etc/planer-api.env
-ExecStart=/opt/planer-api/venv/bin/python /opt/planer-api/send_reminders.py
+ExecStart=/opt/planer-api/venv/bin/python -m server.send_reminders
 NoNewPrivileges=true
 PrivateTmp=true
 UNIT
