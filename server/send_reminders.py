@@ -13,6 +13,25 @@ from pywebpush import WebPushException, webpush
 
 from server.app import database
 
+def due_reminder_stage(task, local_now):
+    """Return 0 (at due time), 2, 4, or None; allow up to a minute for timer drift.
+
+    This keeps default reminders unchanged and only repeats when explicitly enabled.
+    """
+    if task.get("completed"):
+        return None
+    scheduled = str(task.get("date", "")) + " " + str(task.get("time", ""))
+    repeat = task.get("repeatReminder") is True
+    for step in (0, 2, 4):
+        if step and not repeat:
+            continue
+        for delay in (0, 1):
+            timestamp = local_now - timedelta(minutes=step + delay)
+            if scheduled == timestamp.strftime("%Y-%m-%d %H:%M"):
+                return step
+    return None
+
+
 def run():
     private_key = os.environ.get("PUSH_VAPID_PRIVATE_KEY", "")
     if not private_key or not os.path.isfile(private_key):
@@ -30,29 +49,13 @@ def run():
                 local = now.astimezone(ZoneInfo(tz))
             except Exception:
                 continue
-            # A two-minute grace period for each delivery stage.
-            # 0 = normal, 2 = first repeat, 4 = final repeat.
-            slots = {
-                stage: {
-                    (local - timedelta(minutes=stage + delay)).strftime("%Y-%m-%d %H:%M")
-                    for delay in (0, 1)
-                }
-                for stage in (0, 2, 4)
-            }
             rows = db.execute("SELECT id,payload FROM tasks WHERE uid=?", (uid,)).fetchall()
             for task_id, raw in rows:
                 try:
                     task = json.loads(raw)
                     date = task["date"]
                     time = task["time"]
-                    if task["completed"]:
-                        continue
-                    scheduled = date + " " + time
-                    repeat = task.get("repeatReminder") is True
-                    stage = next((
-                        step for step in (0, 2, 4)
-                        if scheduled in slots[step] and (step == 0 or repeat)
-                    ), None)
+                    stage = due_reminder_stage(task, local)
                     if stage is None:
                         continue
                     if stage == 0:
