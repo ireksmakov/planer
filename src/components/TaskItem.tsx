@@ -57,6 +57,7 @@ export function TaskItem({
           <span>{task.category}</span>
           <span className="meta-divider" aria-hidden="true">/</span>
           <span className={task.priority === 'high' ? 'priority-high' : ''}>{priorityLabels[task.priority]} приоритет</span>
+          {task.time && task.repeatReminder && <span className="task-reminder-mode">🔔 С повторами</span>}
         </div>
       </div>
       <div className="task-right">
