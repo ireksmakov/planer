@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Task } from '../types';
 import { readLocalTasks } from '../hooks/useTasks';
+import { PushNotifications, unsubscribeDeviceNotifications } from './PushNotifications';
 
 type Snapshot = { version: number; tasks: Task[] };
 type Credential = { credential?: string };
@@ -186,7 +187,9 @@ export function CloudSync({ tasks, replaceAllTasks }: {
     };
   }, [connected, token]);
 
-  const signOut = () => {
+  const signOut = async () => {
+    // Revoke this device's subscription before switching Google accounts.
+    try { await unsubscribeDeviceNotifications(token); } catch { /* Local unsubscribe still attempted. */ }
     // Keep account data on the server, never leave it visible in shared device storage.
     setConnected(false);
     setSnapshot(null);
@@ -201,8 +204,9 @@ export function CloudSync({ tasks, replaceAllTasks }: {
 
   return <section className="cloud-strip" aria-label="Синхронизация задач">
     {!token ? <><span>Задачи пока сохраняются только на этом устройстве.</span><div ref={buttonRef} /></> :
-      !connected ? <><span>Подключаем облачные задачи…</span><button onClick={signOut}>Выйти</button></> : <>
+      !connected ? <><span>Подключаем облачные задачи…</span><button onClick={() => { void signOut(); }}>Выйти</button></> : <>
         <span>Автосинхронизация включена · {snapshot?.tasks.length ?? 0} задач</span>
+        <PushNotifications token={token} />
         <button onClick={signOut}>Выйти</button>
       </>}
     {error && <span role="alert" className="cloud-error">{error}</span>}
