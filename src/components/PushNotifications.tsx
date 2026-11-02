@@ -40,14 +40,20 @@ export async function unsubscribeDeviceNotifications(token: string): Promise<voi
   const registration = await navigator.serviceWorker.getRegistration(BASE);
   const subscription = await registration?.pushManager.getSubscription();
   if (!subscription) return;
+  // Invalidate the browser endpoint promptly, even if the API is offline.
+  const endpoint = subscription.endpoint;
+  await subscription.unsubscribe();
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 3000);
   try {
     await fetch('/api/push/unsubscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-      body: JSON.stringify({ endpoint: subscription.endpoint }),
+      body: JSON.stringify({ endpoint }),
+      signal: controller.signal,
     });
   } finally {
-    await subscription.unsubscribe();
+    window.clearTimeout(timeout);
   }
 }
 
