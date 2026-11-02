@@ -11,7 +11,7 @@ from zoneinfo import ZoneInfo
 
 from pywebpush import WebPushException, webpush
 
-from app import database
+from server.app import database
 
 def run():
     private_key = os.environ.get("PUSH_VAPID_PRIVATE_KEY", "")
