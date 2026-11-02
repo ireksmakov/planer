@@ -15,6 +15,7 @@ export function TaskForm({ date, initial, compact = false, onSubmit, onCancel }:
   const [time, setTime] = useState(initial?.time ?? '');
   const [priority, setPriority] = useState<TaskPriority>(initial?.priority ?? 'medium');
   const [category, setCategory] = useState(initial?.category ?? 'Личное');
+  const [repeatReminder, setRepeatReminder] = useState(initial?.repeatReminder ?? false);
   const [error, setError] = useState(false);
   const [dateError, setDateError] = useState(false);
 
@@ -24,6 +25,7 @@ export function TaskForm({ date, initial, compact = false, onSubmit, onCancel }:
     setTime(initial?.time ?? '');
     setPriority(initial?.priority ?? 'medium');
     setCategory(initial?.category ?? 'Личное');
+    setRepeatReminder(initial?.repeatReminder ?? false);
     setError(false);
     setDateError(false);
   }, [date, initial]);
@@ -49,6 +51,7 @@ export function TaskForm({ date, initial, compact = false, onSubmit, onCancel }:
       time,
       priority,
       category: category.trim() || 'Без категории',
+      repeatReminder: Boolean(time && repeatReminder),
     });
   }
 
@@ -99,6 +102,10 @@ export function TaskForm({ date, initial, compact = false, onSubmit, onCancel }:
           </datalist>
         </label>
       </div>
+      <label className="reminder-repeat-option">
+        <input type="checkbox" checked={repeatReminder && Boolean(time)} disabled={!time} onChange={(event) => setRepeatReminder(event.target.checked)} />
+        <span><strong>🔔 Настойчивое напоминание</strong><small>{time ? 'Повторить через 2 и 4 минуты, если задача ещё не выполнена' : 'Сначала укажите время задачи'}</small></span>
+      </label>
       {dateError && <span className="form-error" role="alert">Выберите корректную дату.</span>}
       <div className="form-actions">
         <button type="submit" className="solid-button">{initial ? 'Сохранить изменения' : 'Добавить задачу'} <span aria-hidden="true">↗</span></button>
