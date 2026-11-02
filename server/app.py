@@ -2,6 +2,10 @@
 import os
 import sqlite3
 import threading
+import hashlib
+import json
+from urllib.parse import urlparse
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -45,6 +49,12 @@ def database():
         db.execute("PRAGMA journal_mode=WAL")
         db.execute("CREATE TABLE IF NOT EXISTS users (uid TEXT PRIMARY KEY, version INTEGER NOT NULL DEFAULT 0)")
         db.execute("CREATE TABLE IF NOT EXISTS tasks (uid TEXT NOT NULL, id TEXT NOT NULL, payload TEXT NOT NULL, PRIMARY KEY(uid,id))")
+        db.execute("""CREATE TABLE IF NOT EXISTS push_subscriptions
+          (endpoint_id TEXT PRIMARY KEY, uid TEXT NOT NULL, subscription_json TEXT NOT NULL,
+           time_zone TEXT NOT NULL)""")
+        db.execute("""CREATE TABLE IF NOT EXISTS sent_reminders
+          (endpoint_id TEXT NOT NULL, task_id TEXT NOT NULL, task_date TEXT NOT NULL,
+           task_time TEXT NOT NULL, PRIMARY KEY(endpoint_id,task_id,task_date,task_time))""")
         db.commit()
         yield db
     finally:
@@ -131,3 +141,70 @@ def delete_task(body: DeleteRequest, authorization: str | None = Header(default=
         db.execute("UPDATE users SET version=version+1 WHERE uid=?", (uid,))
         db.commit()
         return snapshot(db, uid)
+
+# Notifications are opt-in and bound to verified Google identities.
+# Push URLs and encryption keys are never returned in task snapshots.
+class PushKeys(BaseModel):
+    p256dh: str = Field(min_length=30, max_length=300)
+    auth: str = Field(min_length=10, max_length=150)
+
+class PushInfo(BaseModel):
+    endpoint: str = Field(min_length=20, max_length=2048)
+    keys: PushKeys
+
+class PushRegister(BaseModel):
+    subscription: PushInfo
+    timeZone: str = Field(min_length=1, max_length=100)
+
+class PushRemove(BaseModel):
+    endpoint: str = Field(min_length=20, max_length=2048)
+
+# Only browser push-provider endpoints; never POST to arbitrary user-supplied URLs.
+_PUSH_PROVIDERS = (
+    "push.apple.com", "fcm.googleapis.com", "fcm-xm.googleapis.com",
+    "push.services.mozilla.com", "notify.windows.com", "wns.windows.com",
+)
+
+def validated_push_endpoint(value: str) -> str:
+    url = urlparse(value)
+    host = (url.hostname or "").lower()
+    if url.scheme != "https" or url.username or url.password or url.port not in (None, 443):
+        raise HTTPException(422, "Invalid push endpoint")
+    if not any(host == domain or host.endswith("." + domain) for domain in _PUSH_PROVIDERS):
+        raise HTTPException(422, "Unsupported push provider")
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+@app.get("/api/push/public-key")
+def push_public_key():
+    key = os.environ.get("PUSH_PUBLIC_KEY", "")
+    if not key:
+        raise HTTPException(503, "Push notifications are not configured")
+    return {"publicKey": key}
+
+@app.post("/api/push/subscribe")
+def subscribe_push(body: PushRegister, authorization: str | None = Header(default=None)):
+    uid = user(authorization)
+    if not os.environ.get("PUSH_PUBLIC_KEY"):
+        raise HTTPException(503, "Push notifications are not configured")
+    endpoint_id = validated_push_endpoint(body.subscription.endpoint)
+    try:
+        ZoneInfo(body.timeZone)
+    except (ZoneInfoNotFoundError, ValueError):
+        raise HTTPException(422, "Invalid time zone")
+    with _lock, database() as db:
+        db.execute("""INSERT INTO push_subscriptions
+          (endpoint_id, uid, subscription_json, time_zone) VALUES(?,?,?,?)
+          ON CONFLICT(endpoint_id) DO UPDATE SET uid=excluded.uid,
+          subscription_json=excluded.subscription_json,time_zone=excluded.time_zone""",
+          (endpoint_id, uid, body.subscription.model_dump_json(), body.timeZone))
+        db.commit()
+    return {"ok": True}
+
+@app.post("/api/push/unsubscribe")
+def unsubscribe_push(body: PushRemove, authorization: str | None = Header(default=None)):
+    uid = user(authorization)
+    endpoint_id = validated_push_endpoint(body.endpoint)
+    with _lock, database() as db:
+        db.execute("DELETE FROM push_subscriptions WHERE endpoint_id=? AND uid=?", (endpoint_id, uid))
+        db.commit()
+    return {"ok": True}
