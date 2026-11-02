@@ -1,0 +1,19 @@
+{
+  "name": "Планер — с добрым намерением",
+  "short_name": "Планер",
+  "description": "Планы на день, неделю, месяц и Рамадан",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F6F2E9",
+  "theme_color": "#12372E",
+  "icons": [
+    {
+      "src": "/planner-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
