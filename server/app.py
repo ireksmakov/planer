@@ -29,6 +29,7 @@ class Task(BaseModel):
     category: str = Field(max_length=100)
     completed: bool
     createdAt: int
+    repeatReminder: bool = False
 
 class ImportRequest(BaseModel):
     tasks: list[Task] = Field(max_length=3000)
@@ -55,6 +56,10 @@ def database():
         db.execute("""CREATE TABLE IF NOT EXISTS sent_reminders
           (endpoint_id TEXT NOT NULL, task_id TEXT NOT NULL, task_date TEXT NOT NULL,
            task_time TEXT NOT NULL, PRIMARY KEY(endpoint_id,task_id,task_date,task_time))""")
+        db.execute("""CREATE TABLE IF NOT EXISTS sent_repeat_reminders
+          (endpoint_id TEXT NOT NULL, task_id TEXT NOT NULL, task_date TEXT NOT NULL,
+           task_time TEXT NOT NULL, step INTEGER NOT NULL,
+           PRIMARY KEY(endpoint_id,task_id,task_date,task_time,step))""")
         db.commit()
         yield db
     finally:
