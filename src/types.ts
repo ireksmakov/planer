@@ -10,9 +10,10 @@ export interface Task {
   category: string;
   completed: boolean;
   createdAt: number;
+  repeatReminder?: boolean; // optional: two extra push reminders at +2 and +4 minutes
 }
 
-export type TaskInput = Pick<Task, 'title' | 'date' | 'time' | 'priority' | 'category'>;
+export type TaskInput = Pick<Task, 'title' | 'date' | 'time' | 'priority' | 'category'> & { repeatReminder?: boolean };
 
 export interface TaskActions {
   addTask: (input: TaskInput) => void;
