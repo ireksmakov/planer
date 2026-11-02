@@ -1131,3 +1131,12 @@ body { background-color: var(--paper); }
 .ramadan-edit button{border:1px solid #285d42;color:#285d42;background:transparent;border-radius:8px;padding:9px}
 .ramadan-edit button[type=submit]{background:#285d42;color:white}
 @media(max-width:540px){.ramadan-plan-actions{width:100%}.ramadan-plan-actions button{flex:1}.ramadan-task{align-items:flex-start}.ramadan-task-buttons{justify-content:flex-end}.ramadan-task label{flex:1}}
+
+
+/* Optional Web Push reminders: preserve the existing planner layout. */
+.push-settings {display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.push-settings button {border:1px solid var(--accent);border-radius:8px;color:var(--deep);background:var(--ivory);padding:9px 11px;font-size:12px;font-weight:700}
+.push-settings button:disabled {opacity:.6;cursor:wait}
+.push-enabled {color:var(--completed);font-size:12px;font-weight:700}
+.push-note {color:var(--muted);font-size:11px;line-height:1.5;max-width:280px}
+@media(max-width:600px){.push-settings{width:100%}.push-settings button{min-height:40px}}
