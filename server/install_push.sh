@@ -1,13 +1,22 @@
 #!/usr/bin/env bash
 # One-time opt-in Web Push setup for the existing Planner VPS.
 # Does NOT touch the trading bot service or its files.
-set -euo pipefail
-if [ "$(id -u)" -ne 0 ]; then echo "Please run as root"; exit 1; fi
+set -Eeuo pipefail
+trap 'code=$?; echo "ERROR: установка прервана на строке ${LINENO}, код ${code}."; exit "$code"' ERR
+echo "Проверяем окружение Планера..."
+if [ "$(id -u)" -ne 0 ]; then echo "ERROR: требуется пользователь root"; exit 1; fi
 cd /opt/planer-source
-test -f /etc/planer-api.env
-test -x /opt/planer-api/venv/bin/python
-test -f /opt/planer-api/app.py
-test -d /var/www/planer
+require_file() {
+  if [ ! -f "$1" ]; then echo "ERROR: не найден файл: $1"; exit 1; fi
+}
+require_dir() {
+  if [ ! -d "$1" ]; then echo "ERROR: не найдена папка: $1"; exit 1; fi
+}
+require_file /etc/planer-api.env
+require_file /opt/planer-api/venv/bin/python
+require_file /opt/planer-api/app.py
+require_dir /var/www/planer
+echo "Окружение проверено. Собираем фронтенд..."
 
 set -a
 . /etc/planer-api.env
@@ -23,8 +32,17 @@ if [ ! -f /etc/planer-push/private_key.pem ]; then
   (cd /etc/planer-push && /opt/planer-api/venv/bin/vapid --gen >/dev/null)
 fi
 chmod 600 /etc/planer-push/private_key.pem
-public_key="$(cd /etc/planer-push && /opt/planer-api/venv/bin/vapid --applicationServerKey)"
-if ! grep -q '^PUSH_PUBLIC_KEY=' /etc/planer-api.env; then
+# vapid CLI prints "Application Server Key = <key>", not just the key.
+# Extract only the URL-safe base64 value so systemd and JS can read it.
+public_key="$(cd /etc/planer-push && /opt/planer-api/venv/bin/vapid --applicationServerKey | sed -n 's/^Application Server Key = \([A-Za-z0-9_-]*\).*$/\1/p')"
+if [[ ! "$public_key" =~ ^[A-Za-z0-9_-]{80,100}$ ]]; then
+  echo "ERROR: не удалось получить корректный публичный VAPID-ключ"
+  exit 1
+fi
+# Repair any older invalid value while keeping all other settings intact.
+if grep -q '^PUSH_PUBLIC_KEY=' /etc/planer-api.env; then
+  sed -i "s|^PUSH_PUBLIC_KEY=.*|PUSH_PUBLIC_KEY=$public_key|" /etc/planer-api.env
+else
   printf 'PUSH_PUBLIC_KEY=%s\n' "$public_key" >> /etc/planer-api.env
 fi
 if ! grep -q '^PUSH_VAPID_PRIVATE_KEY=' /etc/planer-api.env; then
