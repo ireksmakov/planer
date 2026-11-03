@@ -75,7 +75,7 @@ lines.append("TELEGRAM_REQUIRED_CHAT_IDS=" + os.environ["TELEGRAM_REQUIRED_CHAT_
 temp = path.with_name(path.name + ".group-temp")
 fd = os.open(str(temp), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
 with os.fdopen(fd, "w") as out:
-    out.write("\\n".join(lines) + "\\n")
+    out.write("\n".join(lines) + "\n")
 os.replace(temp, path)
 os.chmod(path, stat.S_IRUSR | stat.S_IWUSR)
 PY
