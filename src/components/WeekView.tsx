@@ -6,6 +6,7 @@ import {
 } from '../utils/date';
 import { ProgressLine } from './ProgressLine';
 import { TaskForm } from './TaskForm';
+import { PriorityIndicator } from './PriorityIndicator';
 
 interface WeekViewProps extends TaskActions {
   date: Date;
@@ -68,7 +69,8 @@ export function WeekView({ date, tasks, onChangeDate, onOpenDay, addTask, toggle
                     </label>
                     <button type="button" className="week-task-open" onClick={() => onOpenDay(day)}>
                       {task.time && <span className="week-task-time">{task.time}{task.endTime ? `–${task.endTime}` : ''}</span>}
-                      <span className={`week-task-name ${task.priority === 'high' ? 'priority-high' : ''}`}>{task.title}</span>
+                      <span className="week-task-name">{task.title}</span>
+                      <PriorityIndicator priority={task.priority} compact />
                     </button>
                   </div>
                 ))}
