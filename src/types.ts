@@ -5,7 +5,8 @@ export interface Task {
   id: string;
   title: string;
   date: string; // local date: yyyy-MM-dd
-  time: string; // HH:mm, or an empty string
+  time: string; // Начало: HH:mm, or an empty string (legacy compatible)
+  endTime?: string; // Конец: optional HH:mm; older tasks have no end time
   priority: TaskPriority;
   category: string;
   completed: boolean;
@@ -13,7 +14,7 @@ export interface Task {
   repeatReminder?: boolean; // optional: two extra push reminders at +2 and +4 minutes
 }
 
-export type TaskInput = Pick<Task, 'title' | 'date' | 'time' | 'priority' | 'category'> & { repeatReminder?: boolean };
+export type TaskInput = Pick<Task, 'title' | 'date' | 'time' | 'priority' | 'category'> & { repeatReminder?: boolean; endTime?: string };
 
 export interface TaskActions {
   addTask: (input: TaskInput) => void;
