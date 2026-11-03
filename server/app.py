@@ -14,6 +14,7 @@ from fastapi import FastAPI, Header, HTTPException
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
 from pydantic import BaseModel, Field
+from server.telegram_auth import init_tables, lookup_session, register_routes
 
 DB_PATH = Path(os.environ.get("PLANER_DB", "/opt/planer-api/data/planer.sqlite3"))
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
@@ -60,25 +61,44 @@ def database():
           (endpoint_id TEXT NOT NULL, task_id TEXT NOT NULL, task_date TEXT NOT NULL,
            task_time TEXT NOT NULL, step INTEGER NOT NULL,
            PRIMARY KEY(endpoint_id,task_id,task_date,task_time,step))""")
+        init_tables(db)
         db.commit()
         yield db
     finally:
         db.close()
 
-def user(authorization: str | None):
+def google_uid(credential: str) -> str:
     if not GOOGLE_CLIENT_ID:
         raise HTTPException(503, "Google authentication is not configured")
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(401, "Google login required")
     try:
         claims = id_token.verify_oauth2_token(
-            authorization[7:], google_requests.Request(), GOOGLE_CLIENT_ID, clock_skew_in_seconds=30
+            credential, google_requests.Request(), GOOGLE_CLIENT_ID,
+            clock_skew_in_seconds=30
         )
         if claims.get("iss") not in ("accounts.google.com", "https://accounts.google.com"):
             raise ValueError("Invalid issuer")
         return str(claims["sub"])
     except Exception:
-        raise HTTPException(401, "Invalid or expired Google token")
+        raise HTTPException(401, "Google login expired. Please sign in again")
+
+
+def auth_context(authorization: str | None) -> tuple[str, str]:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(401, "Sign in required")
+    token = authorization[7:]
+    if token.startswith("pln_"):
+        with database() as db:
+            session = lookup_session(db, token)
+        if session is None:
+            raise HTTPException(401, "Planner session expired. Please sign in again")
+        return session
+    # Backward compatibility for installed clients still using Google ID tokens.
+    return google_uid(token), "google"
+
+
+def user(authorization: str | None):
+    return auth_context(authorization)[0]
+
 
 def snapshot(db, uid):
     import json
@@ -213,3 +233,7 @@ def unsubscribe_push(body: PushRemove, authorization: str | None = Header(defaul
         db.execute("DELETE FROM push_subscriptions WHERE endpoint_id=? AND uid=?", (endpoint_id, uid))
         db.commit()
     return {"ok": True}
+
+
+# New sessions and Telegram routes coexist with existing Google task endpoints.
+register_routes(app, database, auth_context, google_uid)
