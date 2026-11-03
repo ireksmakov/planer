@@ -13,6 +13,8 @@ export function TaskForm({ date, initial, compact = false, onSubmit, onCancel }:
   const [title, setTitle] = useState(initial?.title ?? '');
   const [selectedDate, setSelectedDate] = useState(initial?.date ?? date);
   const [time, setTime] = useState(initial?.time ?? '');
+  const [endTime, setEndTime] = useState(initial?.endTime ?? '');
+  const [timeError, setTimeError] = useState('');
   const [priority, setPriority] = useState<TaskPriority>(initial?.priority ?? 'medium');
   const [category, setCategory] = useState(initial?.category ?? 'Личное');
   const [repeatReminder, setRepeatReminder] = useState(initial?.repeatReminder ?? false);
@@ -23,6 +25,8 @@ export function TaskForm({ date, initial, compact = false, onSubmit, onCancel }:
     setTitle(initial?.title ?? '');
     setSelectedDate(initial?.date ?? date);
     setTime(initial?.time ?? '');
+    setEndTime(initial?.endTime ?? '');
+    setTimeError('');
     setPriority(initial?.priority ?? 'medium');
     setCategory(initial?.category ?? 'Личное');
     setRepeatReminder(initial?.repeatReminder ?? false);
@@ -40,6 +44,14 @@ export function TaskForm({ date, initial, compact = false, onSubmit, onCancel }:
       setDateError(true);
       return;
     }
+    if (endTime && !time) {
+      setTimeError('Укажите время начала, если задано время окончания.');
+      return;
+    }
+    if (time && endTime && endTime <= time) {
+      setTimeError('Время окончания должно быть позже начала в тот же день.');
+      return;
+    }
     // Release focus before the form unmounts so mobile keyboards close cleanly.
     const focusedElement = document.activeElement;
     if (focusedElement instanceof HTMLElement && event.currentTarget.contains(focusedElement)) {
@@ -49,6 +61,7 @@ export function TaskForm({ date, initial, compact = false, onSubmit, onCancel }:
       title: title.trim(),
       date: selectedDate,
       time,
+      endTime,
       priority,
       category: category.trim() || 'Без категории',
       repeatReminder: Boolean(time && repeatReminder),
@@ -75,15 +88,19 @@ export function TaskForm({ date, initial, compact = false, onSubmit, onCancel }:
       </label>
       {error && <span id="task-title-error" className="form-error" role="alert">Введите название задачи.</span>}
       <div className="task-form-fields">
-        <label className="field">
+        <label className="field field-date">
           <span className="field-label">Дата</span>
           <input type="date" value={selectedDate} onChange={(event) => { setSelectedDate(event.target.value); setDateError(false); }} required aria-invalid={dateError} />
         </label>
-        <label className="field">
-          <span className="field-label">Время</span>
-          <input type="time" value={time} onChange={(event) => setTime(event.target.value)} />
+        <label className="field field-start">
+          <span className="field-label">Начало</span>
+          <input type="time" value={time} onChange={(event) => { setTime(event.target.value); setTimeError(''); }} aria-invalid={Boolean(timeError)} />
         </label>
-        <label className="field">
+        <label className="field field-end">
+          <span className="field-label">Конец</span>
+          <input type="time" value={endTime} onChange={(event) => { setEndTime(event.target.value); setTimeError(''); }} aria-invalid={Boolean(timeError)} />
+        </label>
+        <label className="field field-priority">
           <span className="field-label">Приоритет</span>
           <select value={priority} onChange={(event) => setPriority(event.target.value as TaskPriority)}>
             <option value="low">Низкий</option>
@@ -91,7 +108,7 @@ export function TaskForm({ date, initial, compact = false, onSubmit, onCancel }:
             <option value="high">Высокий</option>
           </select>
         </label>
-        <label className="field">
+        <label className="field field-category">
           <span className="field-label">Категория</span>
           <input value={category} onChange={(event) => setCategory(event.target.value)} maxLength={40} list="category-suggestions" placeholder="Категория" />
           <datalist id="category-suggestions">
@@ -104,9 +121,10 @@ export function TaskForm({ date, initial, compact = false, onSubmit, onCancel }:
       </div>
       <label className="reminder-repeat-option">
         <input type="checkbox" checked={repeatReminder && Boolean(time)} disabled={!time} onChange={(event) => setRepeatReminder(event.target.checked)} />
-        <span><strong>🔔 Настойчивое напоминание</strong><small>{time ? 'Повторить через 2 и 4 минуты, если задача ещё не выполнена' : 'Сначала укажите время задачи'}</small></span>
+        <span><strong>🔔 Настойчивое напоминание</strong><small>{time ? 'Повторить через 2 и 4 минуты, если задача ещё не выполнена' : 'Сначала укажите время начала'}</small></span>
       </label>
       {dateError && <span className="form-error" role="alert">Выберите корректную дату.</span>}
+      {timeError && <span className="form-error" role="alert">{timeError}</span>}
       <div className="form-actions">
         <button type="submit" className="solid-button">{initial ? 'Сохранить изменения' : 'Добавить задачу'} <span aria-hidden="true">↗</span></button>
         <button type="button" className="text-action" onClick={onCancel}>Отмена</button>
