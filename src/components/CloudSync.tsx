@@ -231,9 +231,12 @@ export function CloudSync({ tasks, replaceAllTasks }: {
   };
 
   return <section className="cloud-strip" aria-label="Вход и синхронизация задач">
-    {!token ? <>
+    {!token ? <div className="telegram-login-entry">
+      <p className="telegram-login-required">
+        <strong>Регистрация через Telegram обязательна</strong> для сохранения ваших целей и задач в личном аккаунте.
+      </p>
       <TelegramConnect mode="login" onAuthenticated={acceptSession} />
-    </> : !connected ? <>
+    </div> : !connected ? <>
       <span>Подключаем задачи…</span>
       <button type="button" onClick={() => { void signOut(); }}>Выйти</button>
     </> : <>
