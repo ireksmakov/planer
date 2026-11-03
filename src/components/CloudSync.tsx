@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Task } from '../types';
 import { readLocalTasks } from '../hooks/useTasks';
 import { PushNotifications, unsubscribeDeviceNotifications } from './PushNotifications';
+import { TelegramConnect } from './TelegramConnect';
 
 type Snapshot = { version: number; tasks: Task[] };
+type Identity = { uid: string; provider: 'google' | 'telegram'; telegramLinked: boolean; telegramNotifications: boolean };
 type Credential = { credential?: string };
 type GoogleButtonApi = {
   initialize: (options: { client_id: string; callback: (value: Credential) => void }) => void;
@@ -12,26 +14,36 @@ type GoogleButtonApi = {
 declare global { interface Window { google?: { accounts?: { id?: GoogleButtonApi } } } }
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
-const TOKEN_KEY = 'planer.google.id_token.session';
+const OLD_TOKEN_KEY = 'planer.google.id_token.session';
+const SESSION_KEY = 'planer.auth.session.v1';
 
+class ApiError extends Error {
+  constructor(public readonly status: number, message: string) { super(message); }
+}
 async function request<T>(endpoint: string, token: string, method = 'GET', body?: unknown): Promise<T> {
   const response = await fetch(endpoint, {
-    method, headers: {
-      Authorization: `Bearer ${token}`,
+    method,
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
-    }, body: body === undefined ? undefined : JSON.stringify(body), cache: 'no-store',
+    },
+    body: body === undefined ? undefined : JSON.stringify(body), cache: 'no-store',
   });
-  if (!response.ok) throw new Error(response.status === 409
-    ? 'Данные изменились на другом устройстве. Обновите список перед повтором.'
-    : `Сервер ответил: ${response.status}`);
+  if (!response.ok) throw new ApiError(response.status, response.status === 401
+    ? 'Срок входа истёк. Войдите снова через Google или Telegram.'
+    : response.status === 409
+      ? 'Данные изменились на другом устройстве. Обновите список перед повтором.'
+      : `Сервер ответил: ${response.status}`);
   return response.json() as Promise<T>;
 }
 
 export function CloudSync({ tasks, replaceAllTasks }: {
   tasks: Task[]; replaceAllTasks: (tasks: Task[]) => void;
 }) {
-  const [token, setToken] = useState(() => sessionStorage.getItem(TOKEN_KEY) || '');
+  const [token, setToken] = useState(() => localStorage.getItem(SESSION_KEY) || sessionStorage.getItem(OLD_TOKEN_KEY) || '');
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+  const [identity, setIdentity] = useState<Identity | null>(null);
+  const [connected, setConnected] = useState(false);
   const [error, setError] = useState('');
   const buttonRef = useRef<HTMLDivElement>(null);
   const tasksRef = useRef(tasks);
@@ -42,7 +54,28 @@ export function CloudSync({ tasks, replaceAllTasks }: {
   const connectedRef = useRef(false);
   const snapshotRef = useRef<Snapshot | null>(null);
   const applyingRemote = useRef(false);
+  connectedRef.current = connected;
   snapshotRef.current = snapshot;
+
+  const acceptSession = useCallback((next: string) => {
+    if (!next.startsWith('pln_')) return;
+    localStorage.setItem(SESSION_KEY, next);
+    sessionStorage.removeItem(OLD_TOKEN_KEY);
+    setError('');
+    setToken(next);
+  }, []);
+
+  const expireSession = useCallback((message: string) => {
+    localStorage.removeItem(SESSION_KEY);
+    sessionStorage.removeItem(OLD_TOKEN_KEY);
+    setToken('');
+    setConnected(false);
+    connectedRef.current = false;
+    setIdentity(null);
+    setSnapshot(null);
+    setError(message);
+    // Preserve local tasks, including edits not yet uploaded, until the next sign-in.
+  }, []);
 
   useEffect(() => {
     if (!CLIENT_ID || token) return;
@@ -52,64 +85,77 @@ export function CloudSync({ tasks, replaceAllTasks }: {
     script.onload = () => {
       const api = window.google?.accounts?.id;
       if (!api || !buttonRef.current) return;
-      api.initialize({ client_id: CLIENT_ID, callback: (result) => {
-        if (!result.credential) return;
-        setToken(result.credential);
-        sessionStorage.setItem(TOKEN_KEY, result.credential);
-      } });
+      api.initialize({
+        client_id: CLIENT_ID,
+        callback: (result) => {
+          if (!result.credential) return;
+          // Exchange the one-hour Google ID token for a revocable Planner session.
+          void request<{ token: string }>('/api/auth/google-session', '', 'POST', { credential: result.credential })
+            .then(data => acceptSession(data.token))
+            .catch(e => setError(String(e)));
+        },
+      });
       api.renderButton(buttonRef.current, { theme: 'outline', size: 'large', text: 'signin_with' });
     };
     document.head.appendChild(script);
     return () => { script.remove(); };
-  }, [token]);
+  }, [token, acceptSession]);
 
-  // On first sign-in on this device, merge local records once. Later sign-ins
-  // only download the server snapshot, so deleted cloud records aren't resurrected.
   useEffect(() => {
     if (!token) { setConnected(false); return; }
     let cancelled = false;
     setConnected(false);
+    setIdentity(null);
+
+    if (!token.startsWith('pln_')) {
+      // One-time migration for people still signed in with a legacy Google ID token.
+      void request<{ token: string }>('/api/auth/google-session', '', 'POST', { credential: token })
+        .then(data => { if (!cancelled) acceptSession(data.token); })
+        .catch(() => { if (!cancelled) expireSession('Google-сессия устарела. Войдите повторно — облачные задачи сохранятся.'); });
+      return () => { cancelled = true; };
+    }
+
     const initialize = async () => {
       try {
-        const claims = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))) as { sub?: string };
-        if (!claims.sub) throw Error('Не удалось прочитать идентификатор Google');
-        const marker = 'planer.cloud.imported.' + claims.sub;
+        const me = await request<Identity>('/api/auth/me', token);
+        if (cancelled) return;
+        const marker = 'planer.cloud.imported.' + me.uid;
         const local = readLocalTasks();
         const imported = localStorage.getItem(marker) === 'yes';
-        // Never import another signed-in user's shared localStorage into this account.
-        const knownAccount = Object.keys(localStorage).some(key => key.startsWith('planer.cloud.imported.') && key !== marker);
+        // Do not import tasks from a previously signed-in Google/Telegram user.
+        const knownAccount = Object.keys(localStorage).some(key =>
+          key.startsWith('planer.cloud.imported.') && key !== marker);
         const legacyImport = !imported && !knownAccount && local.length > 0;
         const data = legacyImport
           ? await request<Snapshot>('/api/import', token, 'POST', { tasks: local })
           : await request<Snapshot>('/api/tasks', token);
         if (cancelled) return;
-        // Preserve an on-device copy before applying the cloud snapshot.
-        if (legacyImport) {
-          localStorage.setItem('planer.cloud.backup.' + claims.sub, JSON.stringify(local));
-        }
+        if (legacyImport) localStorage.setItem('planer.cloud.backup.' + me.uid, JSON.stringify(local));
         localStorage.setItem(marker, 'yes');
         cloudIds.current = new Set(data.tasks.map(t => t.id));
         previous.current = new Map(data.tasks.map(t => [t.id, JSON.stringify(t)]));
         snapshotRef.current = data;
         setSnapshot(data);
+        setIdentity(me);
         replaceAllTasks(data.tasks);
         setConnected(true);
         setError('');
       } catch (e) {
         if (!cancelled) {
-          setError('Синхронизация не запущена: ' + String(e));
-          setConnected(false);
+          if (e instanceof ApiError && e.status === 401) {
+            expireSession(e.message);
+          } else {
+            setError('Синхронизация не запущена: ' + String(e));
+            setConnected(false);
+          }
         }
       }
     };
     void initialize();
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [token, acceptSession, expireSession]);
 
-  // Once imported or explicitly loaded, sync individual task changes with a version check.
-  const [connected, setConnected] = useState(false);
-  connectedRef.current = connected;
   useEffect(() => {
     if (!connected || !snapshot || !token) return;
     const timer = window.setTimeout(async () => {
@@ -127,15 +173,14 @@ export function CloudSync({ tasks, replaceAllTasks }: {
         cloudIds.current = new Set(data.tasks.map(t => t.id));
         previous.current = new Map(data.tasks.map(t => [t.id, JSON.stringify(t)]));
         setError('');
-        // Continue until all locally queued changes were uploaded.
       } catch (e) {
-        setConnected(false); setError(String(e));
+        if (e instanceof ApiError && e.status === 401) expireSession(e.message);
+        else { setConnected(false); setError(String(e)); }
       } finally { inflight.current = false; }
     }, 650);
     return () => window.clearTimeout(timer);
-  }, [tasks, connected, snapshot, token]);
+  }, [tasks, connected, snapshot, token, expireSession]);
 
-  // Poll only while connected; never replace local edits awaiting upload.
   useEffect(() => {
     if (!connected || !token) return;
     let cancelled = false;
@@ -152,7 +197,7 @@ export function CloudSync({ tasks, replaceAllTasks }: {
         const data = await request<Snapshot>('/api/tasks', token);
         if (cancelled || !connectedRef.current) return;
         if (data.version !== snapshotRef.current?.version) {
-          // A user may edit during the network request: preserve their local changes.
+          // An edit may have happened while the request was in flight.
           const current = tasksRef.current;
           const changed = current.length !== cloudIds.current.size ||
             current.some(task => previous.current.get(task.id) !== JSON.stringify(task));
@@ -167,10 +212,11 @@ export function CloudSync({ tasks, replaceAllTasks }: {
           applyingRemote.current = false;
         }
       } catch (e) {
-        if (!cancelled) setError('Автоматическое обновление: ' + String(e));
-      } finally {
-        inflight.current = false;
-      }
+        if (!cancelled) {
+          if (e instanceof ApiError && e.status === 401) expireSession(e.message);
+          else setError('Автоматическое обновление: ' + String(e));
+        }
+      } finally { inflight.current = false; }
     };
     const interval = window.setInterval(() => { if (document.visibilityState === 'visible' && navigator.onLine) void pull(); }, 10000);
     const onFocus = () => { if (navigator.onLine) void pull(); };
@@ -185,30 +231,52 @@ export function CloudSync({ tasks, replaceAllTasks }: {
       window.removeEventListener('online', onFocus);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [connected, token]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connected, token, expireSession]);
+
+  const refreshIdentity = useCallback(() => {
+    void request<Identity>('/api/auth/me', token)
+      .then(me => setIdentity(me))
+      .catch(e => setError('Telegram привязан, но не удалось обновить профиль: ' + String(e)));
+  }, [token]);
 
   const signOut = async () => {
-    // Revoke this device's subscription before switching Google accounts.
-    try { await unsubscribeDeviceNotifications(token); } catch { /* Local unsubscribe still attempted. */ }
-    // Keep account data on the server, never leave it visible in shared device storage.
+    const pending = connected && (tasksRef.current.length !== cloudIds.current.size ||
+      tasksRef.current.some(t => previous.current.get(t.id) !== JSON.stringify(t)));
+    if (pending && !window.confirm('Есть задачи, которые ещё не синхронизированы. Выйти всё равно?')) return;
+    const oldToken = token;
     setConnected(false);
+    connectedRef.current = false;
     setSnapshot(null);
     snapshotRef.current = null;
+    setIdentity(null);
     cloudIds.current.clear();
     previous.current.clear();
     replaceAllTasks([]);
     setToken('');
-    sessionStorage.removeItem(TOKEN_KEY);
+    setError('');
+    localStorage.removeItem(SESSION_KEY);
+    sessionStorage.removeItem(OLD_TOKEN_KEY);
+    try { await unsubscribeDeviceNotifications(oldToken); } catch { /* Browser subscription is already invalidated. */ }
+    try { await request('/api/auth/logout', oldToken, 'POST'); } catch { /* Local logout already completed. */ }
   };
-  if (!CLIENT_ID) return null;
 
-  return <section className="cloud-strip" aria-label="Синхронизация задач">
-    {!token ? <><span>Задачи пока сохраняются только на этом устройстве.</span><div ref={buttonRef} /></> :
-      !connected ? <><span>Подключаем облачные задачи…</span><button onClick={() => { void signOut(); }}>Выйти</button></> : <>
-        <span>Автосинхронизация включена · {snapshot?.tasks.length ?? 0} задач</span>
-        <PushNotifications token={token} />
-        <button onClick={signOut}>Выйти</button>
-      </>}
+  return <section className="cloud-strip" aria-label="Вход и синхронизация задач">
+    {!token ? <>
+      <span>Войдите, чтобы ваши задачи сохранялись в личном облаке.</span>
+      {CLIENT_ID && <div ref={buttonRef} />}
+      <TelegramConnect mode="login" onAuthenticated={acceptSession} />
+    </> : !connected ? <>
+      <span>Подключаем задачи…</span>
+      <button type="button" onClick={() => { void signOut(); }}>Выйти</button>
+    </> : <>
+      <span>Автосинхронизация включена · {snapshot?.tasks.length ?? 0} задач</span>
+      <PushNotifications token={token} />
+      {identity?.provider === 'google' && !identity.telegramLinked && <TelegramConnect mode="link" token={token} onLinked={refreshIdentity} />}
+      {identity?.telegramLinked && <span className="telegram-connected">✈ Telegram привязан {identity.telegramNotifications ? '· напоминания включены' : '· напоминания отключены командой /stop'}</span>}
+      {identity?.provider === 'telegram' && <span className="telegram-connected">Вход через Telegram</span>}
+      <button type="button" onClick={() => { void signOut(); }}>Выйти</button>
+    </>}
     {error && <span role="alert" className="cloud-error">{error}</span>}
   </section>;
 }
