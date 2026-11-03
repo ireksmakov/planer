@@ -102,13 +102,14 @@ def telegram_enabled() -> bool:
     )
 
 
-def bot_send(chat_id: str, text: str) -> bool:
+def bot_send(chat_id: str, text: str, *, parse_mode: str | None = None) -> bool:
     token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
     if not token or not ID_PATTERN.fullmatch(str(chat_id)):
         return False
-    data = json.dumps({
-        "chat_id": chat_id, "text": text, "disable_web_page_preview": True
-    }).encode("utf-8")
+    payload = {"chat_id": chat_id, "text": text, "disable_web_page_preview": True}
+    if parse_mode == "HTML":
+        payload["parse_mode"] = "HTML"
+    data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     req = http_request.Request(
         "https://api.telegram.org/bot" + token + "/sendMessage",
         data=data,
