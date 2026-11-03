@@ -50,6 +50,12 @@ def init_tables(db):
         db.execute("ALTER TABLE telegram_accounts ADD COLUMN verified_group_id TEXT")
     if "verified_at" not in columns:
         db.execute("ALTER TABLE telegram_accounts ADD COLUMN verified_at INTEGER")
+    # v2 is issued ONLY after a user presses 'Check subscriptions' and BOTH
+    # communities return live Telegram membership. Legacy receipts aren't proof.
+    if "membership_verified_set" not in columns:
+        db.execute("ALTER TABLE telegram_accounts ADD COLUMN membership_verified_set TEXT NOT NULL DEFAULT ''")
+    if "membership_verified_at" not in columns:
+        db.execute("ALTER TABLE telegram_accounts ADD COLUMN membership_verified_at INTEGER NOT NULL DEFAULT 0")
     db.execute("CREATE INDEX IF NOT EXISTS idx_telegram_accounts_uid ON telegram_accounts(uid)")
     db.execute("""CREATE TABLE IF NOT EXISTS telegram_verified_communities (
         tg_id TEXT NOT NULL,
@@ -82,6 +88,23 @@ def init_tables(db):
     )""")
 
 
+def required_community_key() -> str:
+    """Stable exact set of communities, independent of configuration order."""
+    return ",".join(sorted(group["id"] for group in configured_groups()))
+
+
+def membership_already_confirmed(db, tg_id: str) -> bool:
+    """Only v2 explicit-confirmation receipts can bypass later join prompts."""
+    key = required_community_key()
+    if not key:
+        return False
+    row = db.execute(
+        """SELECT membership_verified_set,membership_verified_at
+        FROM telegram_accounts WHERE tg_id=?""", (tg_id,)
+    ).fetchone()
+    return bool(row and row[0] == key and row[1] > 0)
+
+
 def lookup_session(db, token: str):
     """Return (current uid, provider) or None. Telegram uid follows account linking."""
     if not token.startswith("pln_") or len(token) > 120:
@@ -97,14 +120,8 @@ def lookup_session(db, token: str):
         return subject, provider
     if provider == "telegram":
         mapped = db.execute("SELECT uid FROM telegram_accounts WHERE tg_id=?", (subject,)).fetchone()
-        if mapped is not None:
-            required = {group["id"] for group in configured_groups()}
-            verified = {record[0] for record in db.execute(
-                "SELECT chat_id FROM telegram_verified_communities WHERE tg_id=?", (subject,)
-            ).fetchall()}
-            # Existing sessions continue until a required community is configured.
-            if required.issubset(verified):
-                return mapped[0], provider
+        if mapped is not None and membership_already_confirmed(db, subject):
+            return mapped[0], provider
     return None
 
 
@@ -265,54 +282,64 @@ def register_routes(app, database, auth_context, google_uid):
             return {"status": "linked"}
 
 
-    def confirm_group_and_login(tg_id: str, chat_id: str, request_code: str):
-        """Return (result, message, unverified group IDs). Never trust a button alone."""
+    def confirm_group_and_login(tg_id: str, chat_id: str, request_code: str,
+                                *, check_pressed: bool = False):
+        """Gate first-time access on an explicit button + two LIVE Telegram checks.
+
+        Previous versions could auto-confirm on /start or trust cached group receipts.
+        This v2 proof is set only when both current memberships have been checked.
+        On future logins, that proof is re-used as the user requested.
+        """
         groups = configured_groups()
         if not groups:
-            return "error", "Сообщества Планера ещё не настроены.", []
+            return "error", "Сообщества Планера пока не настроены.", []
         code_hash = digest(request_code)
         with database() as db:
             row = db.execute("""SELECT mode,target_uid,time_zone,expires_at,completed
                 FROM telegram_login_requests WHERE request_hash=?""", (code_hash,)).fetchone()
-            verified = {r[0] for r in db.execute(
-                "SELECT chat_id FROM telegram_verified_communities WHERE tg_id=?", (tg_id,)
-            ).fetchall()}
+            previously_confirmed = membership_already_confirmed(db, tg_id)
         if row is None or row[3] < int(time.time()) or row[4]:
             return "error", "⏱ Ссылка для входа устарела. Создайте новую в «Планере».", []
 
-        outstanding = [group for group in groups if group["id"] not in verified]
-        newly_verified = []
-        still_missing = []
-        api_unavailable = False
-        for group in outstanding:
-            membership = membership_status(tg_id, group["id"])
-            if membership is True:
-                newly_verified.append(group["id"])
-            elif membership is False:
-                still_missing.append(group["id"])
-            else:
-                api_unavailable = True
-                still_missing.append(group["id"])
-
-        if still_missing:
+        if not previously_confirmed and not check_pressed:
+            # A /start command NEVER grants first-time access by itself.
             with database() as db:
-                db.execute("BEGIN IMMEDIATE")
-                for group_id in newly_verified:
-                    db.execute("""INSERT OR IGNORE INTO telegram_verified_communities
-                        (tg_id,chat_id,verified_at) VALUES(?,?,?)""",
-                        (tg_id, group_id, int(time.time())))
                 db.execute("""UPDATE telegram_login_requests
                     SET membership_required=1 WHERE request_hash=? AND completed=0""",
                     (code_hash,))
                 db.commit()
-            if api_unavailable:
-                return ("error", "Не удалось проверить одну из подписок. Убедитесь, что "
-                        "бот является администратором обоих сообществ, и повторите проверку.",
-                        still_missing)
-            names = [g["title"] for g in groups if g["id"] in still_missing]
-            return ("join", "🌙 Для первого входа подпишитесь на сообщества: "
-                    + ", ".join(names) + ". Затем нажмите «✅ Проверить подписки». "
-                    "Подтвердить участие нужно только один раз.", still_missing)
+            return ("join", "🌙 Добро пожаловать в «Планер»!\n\n"
+                    "Для первого входа подпишитесь на оба сообщества:\n"
+                    "📚 ФИЗМАТ\n"
+                    "📈 Мир инвестиций\n\n"
+                    "После подписки нажмите «✅ Проверить подписки». "
+                    "Повторная проверка при следующих входах не понадобится.",
+                    [g["id"] for g in groups])
+
+        if not previously_confirmed:
+            missing = []
+            unavailable = []
+            for group in groups:
+                status = membership_status(tg_id, group["id"])
+                if status is False:
+                    missing.append(group["id"])
+                elif status is not True:
+                    unavailable.append(group["id"])
+            if missing or unavailable:
+                with database() as db:
+                    db.execute("""UPDATE telegram_login_requests
+                        SET membership_required=1 WHERE request_hash=? AND completed=0""",
+                        (code_hash,))
+                    db.commit()
+                if unavailable:
+                    return ("error", "⚠️ Не удалось проверить подписки Telegram. "
+                            "Попробуйте снова, убедившись, что бот — администратор "
+                            "обоих сообществ.", missing + unavailable)
+                names = [g["title"] for g in groups if g["id"] in missing]
+                return ("join", "🔒 Вход пока закрыт.\n\n"
+                        "Вы ещё не подписаны на: " + ", ".join(names)
+                        + ".\n\nПодпишитесь и снова нажмите «✅ Проверить подписки».",
+                        missing)
 
         with database() as db:
             db.execute("BEGIN IMMEDIATE")
@@ -334,28 +361,32 @@ def register_routes(app, database, auth_context, google_uid):
                         db.execute("UPDATE users SET version=version+1 WHERE uid=?", (target_uid,))
                 uid = target_uid
                 message = ("✅ Telegram привязан к вашему аккаунту «Планера». "
-                           "Обе подписки подтверждены один раз, повторять не нужно. "
-                           "Напоминания будут приходить в этот чат. Отключить: /stop.")
+                           "Обе подписки подтверждены. Повторять проверку не нужно. "
+                           "Напоминания будут приходить сюда. Отключить: /stop.")
             else:
                 uid = existing[0] if existing else "tg:" + tg_id
-                message = ("✅ Вход в «Планер» подтверждён! "
-                           "Обе подписки зачтены один раз. "
-                           "Вернитесь на сайт: задачи загрузятся автоматически. "
-                           "Напоминания включены, отключить: /stop.")
+                message = ("✅ Вход в «Планер» подтверждён!\n"
+                           "Подписки на «ФИЗМАТ» и «Мир инвестиций» подтверждены.\n"
+                           "Вернитесь на сайт — ваши задачи загрузятся автоматически. "
+                           "При следующих входах повторная проверка не нужна.")
             db.execute("""INSERT INTO telegram_accounts
-                (tg_id,uid,chat_id,time_zone,notifications_enabled)
-                VALUES(?,?,?,?,1)
+                (tg_id,uid,chat_id,time_zone,notifications_enabled,
+                 membership_verified_set,membership_verified_at)
+                VALUES(?,?,?,?,1,?,?)
                 ON CONFLICT(tg_id) DO UPDATE SET
                 uid=excluded.uid,chat_id=excluded.chat_id,
-                time_zone=excluded.time_zone,notifications_enabled=1""",
-                (tg_id,uid,chat_id,time_zone))
-            for group_id in newly_verified:
-                db.execute("""INSERT OR IGNORE INTO telegram_verified_communities
-                    (tg_id,chat_id,verified_at) VALUES(?,?,?)""",
-                    (tg_id, group_id, int(time.time())))
-            db.execute(
-                "UPDATE telegram_login_requests SET tg_id=?,completed=1 WHERE request_hash=?",
-                (tg_id, code_hash))
+                time_zone=excluded.time_zone,notifications_enabled=1,
+                membership_verified_set=excluded.membership_verified_set,
+                membership_verified_at=excluded.membership_verified_at""",
+                (tg_id, uid, chat_id, time_zone, required_community_key(), int(time.time())))
+            if not previously_confirmed:
+                # Legacy per-community records are informational only, never a gate.
+                for group in groups:
+                    db.execute("""INSERT OR REPLACE INTO telegram_verified_communities
+                        (tg_id,chat_id,verified_at) VALUES(?,?,?)""",
+                        (tg_id, group["id"], int(time.time())))
+            db.execute("""UPDATE telegram_login_requests
+                SET tg_id=?,completed=1 WHERE request_hash=?""", (tg_id, code_hash))
             db.commit()
         return "ok", message, []
 
@@ -385,7 +416,9 @@ def register_routes(app, database, auth_context, google_uid):
             if (isinstance(chat, dict) and chat.get("type") == "private"
                     and tg_id == chat_id and ID_PATTERN.fullmatch(tg_id)
                     and re.fullmatch(r"verify_[A-Za-z0-9_-]{24,64}", cb_data)):
-                result, response, missing = confirm_group_and_login(tg_id, chat_id, cb_data[7:])
+                result, response, missing = confirm_group_and_login(
+                    tg_id, chat_id, cb_data[7:], check_pressed=True
+                )
                 answer_callback(str(callback.get("id", "")), "Проверка завершена" if result == "ok" else "Проверьте сообщение")
                 markup = verification_keyboard(cb_data[7:], missing) if result == "join" else None
                 bot_send(chat_id, response, reply_markup=markup)
