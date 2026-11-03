@@ -42,7 +42,7 @@ jobs:
         run: |
           python -m pip install -r server/requirements.txt
           python -m compileall -q server
-          python -m unittest server.test_reminders server.test_telegram_auth server.test_telegram_group server.test_telegram_gate_flow
+          python -m unittest server.test_reminders server.test_telegram_auth server.test_telegram_group server.test_telegram_gate_flow server.test_task_time_range
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
