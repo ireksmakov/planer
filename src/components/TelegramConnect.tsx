@@ -14,7 +14,7 @@ type Props = {
 export function TelegramConnect({ mode, token, onAuthenticated, onLinked }: Props) {
   const [available, setAvailable] = useState(false);
   const [botUrl, setBotUrl] = useState('');
-  const [groupUrl, setGroupUrl] = useState('');
+  const [groups, setGroups] = useState<{ title: string; url: string }[]>([]);
   const [configurationLoaded, setConfigurationLoaded] = useState(false);
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [working, setWorking] = useState(false);
@@ -25,11 +25,11 @@ export function TelegramConnect({ mode, token, onAuthenticated, onLinked }: Prop
     let cancelled = false;
     void fetch('/api/auth/config', { cache: 'no-store' })
       .then(r => r.ok ? r.json() : Promise.reject())
-      .then((config: { telegram: boolean; botUrl?: string; groupUrl?: string }) => {
+      .then((config: { telegram: boolean; botUrl?: string; groups?: { title: string; url: string }[] }) => {
         if (!cancelled) {
           setAvailable(config.telegram);
           setBotUrl(config.botUrl || '');
-          setGroupUrl(config.groupUrl || '');
+          setGroups(Array.isArray(config.groups) ? config.groups : []);
           setConfigurationLoaded(true);
         }
       })
@@ -121,12 +121,12 @@ export function TelegramConnect({ mode, token, onAuthenticated, onLinked }: Prop
       {working ? 'Подключаем Telegram…' : mode === 'login' ? '✈ Войти через Telegram' : '✈ Привязать Telegram'}
     </button> : <div className="telegram-confirm">
       <a href={ticket.url} target="_blank" rel="noopener noreferrer">Открыть бота в Telegram</a>
-      <span>Нажмите Start у бота. При первом входе вступите в группу и нажмите «✅ Проверить подписку» в чате бота. В следующие разы вступать не потребуется.</span>
-      {joinRequired && groupUrl && <a href={groupUrl} target="_blank" rel="noopener noreferrer">🌙 Вступить в группу Планера (только один раз)</a>}
+      <span>Нажмите Start у бота. При первом входе подпишитесь на оба сообщества и нажмите «✅ Проверить подписки» в чате бота. При следующих входах подписываться повторно не потребуется.</span>
+      {joinRequired && groups.map(group => <a key={group.url} href={group.url} target="_blank" rel="noopener noreferrer">🌙 {group.title} — вступить один раз</a>)}
       <button type="button" onClick={() => { setTicket(null); setJoinRequired(false); }}>Отменить</button>
     </div>}
-    {mode === 'login' && <small>Новые пользователи один раз вступают в Telegram-группу и подтверждают участие через бота. Последующие входы — без новой подписки. Напоминания можно отключить командой /stop.</small>}
-    {mode === 'link' && <small>Свяжем Telegram с существующим аккаунтом, сохранив ваши задачи. Участие в группе проверяется только при первой привязке.</small>}
+    {mode === 'login' && <small>Первый вход: один раз вступите в «ФИЗМАТ» и «Мир инвестиций», затем подтвердите обе подписки в боте. При следующих входах повторять не нужно. Напоминания отключаются командой /stop.</small>}
+    {mode === 'link' && <small>Свяжем Telegram с существующим аккаунтом, сохранив ваши задачи. Подписки на оба сообщества проверяются только при первой привязке.</small>}
     {error && <span className="cloud-error" role="alert">{error}</span>}
     {mode === 'link' && botUrl && <a className="telegram-bot-link" href={botUrl} target="_blank" rel="noopener noreferrer">Открыть чат бота</a>}
   </div>;
