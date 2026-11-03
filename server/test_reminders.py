@@ -24,9 +24,13 @@ class ReminderScheduleTests(unittest.TestCase):
             ("2026-11-02T19:22", 0),
             ("2026-11-02T19:23", 2),
             ("2026-11-02T19:24", 2),
-            ("2026-11-02T19:25", 4),
-            ("2026-11-02T19:26", 4),
+            ("2026-11-02T19:25", None),
+            ("2026-11-02T19:26", None),
             ("2026-11-02T19:27", None),
+            ("2026-11-02T20:20", None),
+            ("2026-11-02T20:21", 60),
+            ("2026-11-02T20:22", 60),
+            ("2026-11-02T20:23", None),
         ):
             self.check(clock, expected)
 
@@ -34,16 +38,20 @@ class ReminderScheduleTests(unittest.TestCase):
         self.check("2026-11-02T19:21", 0, repeat=False)
         self.check("2026-11-02T19:23", None, repeat=False)
         self.check("2026-11-02T19:25", None, repeat=False)
+        self.check("2026-11-02T20:21", None, repeat=False)
 
     def test_completed_tasks_never_repeat(self):
         self.check("2026-11-02T19:21", None, completed=True)
         self.check("2026-11-02T19:23", None, completed=True)
         self.check("2026-11-02T19:25", None, completed=True)
+        self.check("2026-11-02T20:21", None, completed=True)
 
     def test_midnight_rollover(self):
         task = dict(self.task, date="2026-11-02", time="23:58")
         self.assertEqual(due_reminder_stage(task, datetime(2026, 11, 3, 0, 0)), 2)
-        self.assertEqual(due_reminder_stage(task, datetime(2026, 11, 3, 0, 2)), 4)
+        self.assertIsNone(due_reminder_stage(task, datetime(2026, 11, 3, 0, 2)))
+        self.assertEqual(due_reminder_stage(task, datetime(2026, 11, 3, 0, 58)), 60)
+        self.assertEqual(due_reminder_stage(task, datetime(2026, 11, 3, 0, 59)), 60)
 
     def test_telegram_fifteen_minute_warning(self):
         task = dict(self.task)
@@ -52,7 +60,8 @@ class ReminderScheduleTests(unittest.TestCase):
         self.assertIsNone(telegram_reminder_stage(task, datetime(2026, 11, 2, 19, 8)))
         self.assertEqual(telegram_reminder_stage(task, datetime(2026, 11, 2, 19, 21)), 0)
         self.assertEqual(telegram_reminder_stage(task, datetime(2026, 11, 2, 19, 23)), 2)
-        self.assertEqual(telegram_reminder_stage(task, datetime(2026, 11, 2, 19, 25)), 4)
+        self.assertIsNone(telegram_reminder_stage(task, datetime(2026, 11, 2, 19, 25)))
+        self.assertEqual(telegram_reminder_stage(task, datetime(2026, 11, 2, 20, 21)), 60)
 
     def test_telegram_warning_without_extra_repeats(self):
         task = dict(self.task, repeatReminder=False)
@@ -110,10 +119,13 @@ class ReminderScheduleTests(unittest.TestCase):
             self.assertIsNone(due_reminder_stage(task, end_at + timedelta(minutes=2)))
             self.assertIsNone(due_reminder_stage(task, datetime(2026, 11, 2, 19, 25)))
 
-    def test_legacy_second_repeat_remains_at_four_minutes(self):
-        task = dict(self.task)
-        self.assertEqual(due_reminder_stage(task, datetime(2026, 11, 2, 19, 25)), 4)
-        self.assertNotIn("Конец:", telegram_reminder_message(task | {"title": "Старая задача"}, 4))
+    def test_second_repeat_without_end_is_after_one_hour(self):
+        task = dict(self.task, title="Старая задача")
+        self.assertIsNone(due_reminder_stage(task, datetime(2026, 11, 2, 19, 25)))
+        self.assertEqual(due_reminder_stage(task, datetime(2026, 11, 2, 20, 21)), 60)
+        self.assertNotIn("Конец:", telegram_reminder_message(task, 60))
+        self.assertIn("ПОВТОРНОЕ НАПОМИНАНИЕ 2/2", telegram_reminder_message(task, 60))
+        self.assertIn("Цель ещё отмечена как невыполненная", telegram_reminder_message(task, 60))
 
     def test_old_tasks_with_no_end_time_keep_working(self):
         task = dict(self.task, title="Старая задача")
@@ -128,7 +140,7 @@ class ReminderScheduleTests(unittest.TestCase):
         self.assertIn('\n\n', text)
         self.assertNotIn('\\\\n', text)
         self.assertIn('<a href="https://planer.fizmat-course.com/">', text)
-        for stage in (0, 2, 4):
+        for stage in (0, 2, 6, 60):
             next_text = telegram_reminder_message(task, stage)
             self.assertIn('<b>Урок &lt;1&gt;', next_text)
             self.assertIn('Начало: <b>19:21</b>', next_text)
