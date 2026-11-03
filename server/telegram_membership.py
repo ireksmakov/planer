@@ -1,7 +1,7 @@
-"""One-time Telegram community membership verification for Planner onboarding.
+"""One-time membership verification for Planner's required Telegram communities.
 
-The bot must be an administrator in the configured group/channel for
-getChatMember to reliably check other people. Verification is stored once.
+Bot administrator privileges are required in EVERY configured group or channel:
+Telegram getChatMember checks of other users are only reliable for admins.
 """
 import json
 import os
@@ -9,20 +9,40 @@ import re
 from urllib import request as urlrequest
 from urllib.error import HTTPError, URLError
 
-_CHAT_ID = re.compile(r"^(?:@[A-Za-z][A-Za-z0-9_]{4,31}|-100[0-9]{5,20})$")
+_CHAT_ID = re.compile(r"^@[A-Za-z][A-Za-z0-9_]{4,31}$")
+_CHAT_ID_PRIVATE = re.compile(r"^-100[0-9]{5,20}$")
 _JOIN_URL = re.compile(r"^https://t\.me/(?:[A-Za-z][A-Za-z0-9_]{4,31}|\+[A-Za-z0-9_-]{8,})$")
+_LABELS = {"@mathematician24": "ФИЗМАТ", "@investment2027": "Мир инвестиций"}
 
 
-def configured_group():
+def configured_groups():
+    """Return required groups as {id,title,url}; fail closed on invalid config."""
+    raw = os.getenv("TELEGRAM_REQUIRED_CHAT_IDS", "").strip()
+    if raw:
+        ids = [item.strip() for item in raw.split(",")]
+        if not 1 <= len(ids) <= 5 or len(ids) != len(set(ids)):
+            return []
+        if any(not _CHAT_ID.fullmatch(identifier) for identifier in ids):
+            return []
+        return [{
+            "id": identifier,
+            "title": _LABELS.get(identifier, identifier),
+            "url": "https://t.me/" + identifier[1:],
+        } for identifier in ids]
+    # Backwards compatibility for older single-group deployments.
     chat_id = os.getenv("TELEGRAM_REQUIRED_CHAT_ID", "").strip()
     url = os.getenv("TELEGRAM_REQUIRED_CHAT_URL", "").strip()
-    if not _CHAT_ID.fullmatch(chat_id) or not _JOIN_URL.fullmatch(url):
-        return None
-    return chat_id, url
+    if not chat_id or not url:
+        return []
+    if not (_CHAT_ID.fullmatch(chat_id) or _CHAT_ID_PRIVATE.fullmatch(chat_id)):
+        return []
+    if not _JOIN_URL.fullmatch(url):
+        return []
+    return [{"id": chat_id, "title": "Сообщество Планера", "url": url}]
 
 
 def telegram_api(method: str, payload: dict):
-    """Call a fixed Telegram Bot API method, without leaking credentials."""
+    """Call a fixed Telegram Bot API method without printing credentials."""
     if method not in ("getChatMember", "getMe", "answerCallbackQuery"):
         return None
     token = os.getenv("TELEGRAM_BOT_TOKEN", "")
@@ -43,13 +63,10 @@ def telegram_api(method: str, payload: dict):
         return None
 
 
-def membership_status(telegram_user_id: str):
-    """True if joined, False if not joined, None if API unavailable."""
-    config = configured_group()
-    if not config:
-        return None
+def membership_status(telegram_user_id: str, chat_id: str):
+    """True when joined, False when absent, None when Bot API is unavailable."""
     result = telegram_api("getChatMember", {
-        "chat_id": config[0], "user_id": int(telegram_user_id),
+        "chat_id": chat_id, "user_id": int(telegram_user_id),
     })
     if not isinstance(result, dict):
         return None
@@ -63,14 +80,23 @@ def membership_status(telegram_user_id: str):
     return None
 
 
-def verification_keyboard(request_code: str) -> dict:
-    config = configured_group()
-    if not config:
-        raise ValueError("Required Telegram group has not been configured")
-    return {"inline_keyboard": [
-        [{"text": "🌙 Вступить в группу Планера", "url": config[1]}],
-        [{"text": "✅ Проверить подписку", "callback_data": "verify_" + request_code}],
-    ]}
+def verification_keyboard(request_code: str, missing=None):
+    """Show one join link per outstanding community, then one verify button."""
+    groups = configured_groups()
+    if not groups:
+        raise ValueError("Required Telegram communities are not configured")
+    outstanding = groups if missing is None else [
+        group for group in groups if group["id"] in set(missing)
+    ]
+    keyboard = [
+        [{"text": "🌙 " + group["title"], "url": group["url"]}]
+        for group in outstanding
+    ]
+    keyboard.append([{
+        "text": "✅ Проверить подписки",
+        "callback_data": "verify_" + request_code,
+    }])
+    return {"inline_keyboard": keyboard}
 
 
 def answer_callback(callback_id: str, message: str):
