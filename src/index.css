@@ -1264,3 +1264,27 @@ body { background-color: var(--paper); }
 @media (prefers-reduced-motion: reduce) {
   .priority-indicator__dot { animation: none !important; }
 }
+
+
+/* Short, readable Telegram account-saving notice with no extra login panel. */
+.telegram-login-entry {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  width: 100%;
+}
+.telegram-login-required {
+  margin: 0;
+  color: #1b5038;
+  font-size: clamp(14px, 3.6vw, 16px);
+  font-weight: 500;
+  line-height: 1.55;
+}
+.telegram-login-required strong {
+  font-weight: 800;
+}
+.telegram-login-entry .telegram-auth {
+  flex: none;
+  width: 100%;
+}
