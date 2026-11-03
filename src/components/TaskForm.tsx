@@ -121,7 +121,7 @@ export function TaskForm({ date, initial, compact = false, onSubmit, onCancel }:
       </div>
       <label className="reminder-repeat-option">
         <input type="checkbox" checked={repeatReminder && Boolean(time)} disabled={!time} onChange={(event) => setRepeatReminder(event.target.checked)} />
-        <span><strong>🔔 Настойчивое напоминание</strong><small>{time ? 'Повторить через 2 и 4 минуты, если задача ещё не выполнена' : 'Сначала укажите время начала'}</small></span>
+        <span><strong>🔔 Настойчивое напоминание</strong><small>{time ? (endTime ? 'Повтор 1/2 — через 2 минуты после начала, 2/2 — в конце задачи' : 'Повторы через 2 и 4 минуты; для последнего повтора в конце укажите время «Конец»') : 'Сначала укажите время начала'}</small></span>
       </label>
       {dateError && <span className="form-error" role="alert">Выберите корректную дату.</span>}
       {timeError && <span className="form-error" role="alert">{timeError}</span>}
