@@ -15,6 +15,18 @@ from pywebpush import WebPushException, webpush
 from server.app import database
 from server.telegram_auth import bot_send
 
+PRIORITY_STYLES = {
+    "high": ("🔴", "ВЫСОКИЙ ПРИОРИТЕТ"),
+    "medium": ("🟡", "СРЕДНИЙ ПРИОРИТЕТ"),
+    "low": ("🟢", "НИЗКИЙ ПРИОРИТЕТ"),
+}
+
+
+def priority_style(task):
+    """Default old tasks with no priority to medium and never trust text as HTML."""
+    return PRIORITY_STYLES.get(task.get("priority"), PRIORITY_STYLES["medium"])
+
+
 def due_reminder_stage(task, local_now):
     """Return the due reminder's stage, with one-minute timer grace.
 
@@ -87,6 +99,7 @@ def telegram_reminder_message(task, stage):
     name = escape(str(task["title"])[:350])
     when = escape(str(task["time"]))
     end_time = escape(str(task.get("endTime") or ""))
+    priority_icon, priority_label = priority_style(task)
     if stage == -15:
         heading = "🕌 НАПОМИНАНИЕ О ЦЕЛИ"
         detail = "⏳ До вашей цели осталось <b>15 минут</b>."
@@ -101,6 +114,7 @@ def telegram_reminder_message(task, stage):
                   if stage == 6 else "🌿 Цель ещё отмечена как невыполненная.")
         closing = "Если вы уже завершили дело, отметьте его выполненным в Планере."
     return "\n".join((
+        f"{priority_icon} <b>{priority_label}</b>",
         f"<b>{heading}</b>",
         "﴿ بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ ﴾",
         "",
@@ -194,8 +208,9 @@ def run():
                     if cursor.rowcount == 0:
                         continue
                     db.commit()  # reserve a delivery before contacting push service
-                    heading = ("Планер · " + time) if stage == 0 else (
-                        "Планер · Повтор " + ("1/2" if stage == 2 else "2/2")
+                    priority_icon, _ = priority_style(task)
+                    heading = (priority_icon + " Планер · " + time) if stage == 0 else (
+                        priority_icon + " Планер · Повтор " + ("1/2" if stage == 2 else "2/2")
                     )
                     payload = json.dumps({
                         "title": heading,
