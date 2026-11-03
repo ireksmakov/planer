@@ -309,7 +309,7 @@ def register_routes(app, database, auth_context, google_uid):
                     (code_hash,))
                 db.commit()
             return ("join", "🌙 Добро пожаловать в «Планер»!\n\n"
-                    "Для первого входа подпишитесь на оба сообщества:\n"
+                    "<b>Для первого входа подпишитесь на оба сообщества:</b>\n"
                     "📚 ФИЗМАТ\n"
                     "📈 Мир инвестиций\n\n"
                     "После подписки нажмите «✅ Проверить подписки». "
@@ -430,7 +430,10 @@ def register_routes(app, database, auth_context, google_uid):
                 )
                 answer_callback(str(callback.get("id", "")), "Проверка завершена" if result == "ok" else "Проверьте сообщение")
                 markup = verification_keyboard(cb_data[7:], missing) if result == "join" else None
-                bot_send(chat_id, response, reply_markup=markup)
+                bot_send(
+                    chat_id, response, reply_markup=markup,
+                    parse_mode="HTML" if response.startswith("🌙 Добро пожаловать") else None,
+                )
             return {"ok": True}
 
         message = update.get("message") or {}
@@ -463,5 +466,8 @@ def register_routes(app, database, auth_context, google_uid):
             code = match.group(1)
             result, response, missing = confirm_group_and_login(tg_id, chat_id, code)
             markup = verification_keyboard(code, missing) if result == "join" else None
-            bot_send(chat_id, response, reply_markup=markup)
+            bot_send(
+                    chat_id, response, reply_markup=markup,
+                    parse_mode="HTML" if response.startswith("🌙 Добро пожаловать") else None,
+                )
         return {"ok": True}
