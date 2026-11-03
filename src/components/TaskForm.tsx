@@ -102,7 +102,7 @@ export function TaskForm({ date, initial, compact = false, onSubmit, onCancel }:
         </label>
         <label className="field field-priority">
           <span className="field-label">Приоритет</span>
-          <select value={priority} onChange={(event) => setPriority(event.target.value as TaskPriority)}>
+          <select className={`priority-picker priority-picker--${priority}`} value={priority} onChange={(event) => setPriority(event.target.value as TaskPriority)}>
             <option value="low">Низкий</option>
             <option value="medium">Средний</option>
             <option value="high">Высокий</option>
