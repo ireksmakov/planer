@@ -61,7 +61,7 @@ export function TaskItem({
         </div>
       </div>
       <div className="task-right">
-        <span className="task-time">{task.time || '—:—'}</span>
+        <span className={`task-time ${task.endTime ? 'task-time-range' : ''}`}>{task.time ? (task.endTime ? `${task.time}–${task.endTime}` : task.time) : '—:—'}</span>
         <div className="task-actions">
           {isOverdue && (
             <button
