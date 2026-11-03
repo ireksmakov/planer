@@ -144,7 +144,7 @@ export function DayView({ date, tasks, onChangeDate, addTask, updateTask, resche
             <div id="today-task-list" className="today-goals-content" hidden={!todayExpanded}>
               <div className="today-goals-columns">
                 <span>ЗАДАЧИ / {String(dayTasks.length).padStart(2, '0')}</span>
-                <span>ВРЕМЯ / ДЕЙСТВИЯ</span>
+                <span>НАЧАЛО–КОНЕЦ / ДЕЙСТВИЯ</span>
               </div>
               {dayTasks.length === 0 ? (
                 <div className="today-goals-empty" role="status">
