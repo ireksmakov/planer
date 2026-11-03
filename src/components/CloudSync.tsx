@@ -232,7 +232,6 @@ export function CloudSync({ tasks, replaceAllTasks }: {
 
   return <section className="cloud-strip" aria-label="Вход и синхронизация задач">
     {!token ? <>
-      <span>Для входа и синхронизации задач используйте Telegram. В группу нужно вступить только один раз.</span>
       <TelegramConnect mode="login" onAuthenticated={acceptSession} />
     </> : !connected ? <>
       <span>Подключаем задачи…</span>
