@@ -24,7 +24,7 @@ async function request<T>(endpoint: string, token: string, method = 'GET', body?
     body: body === undefined ? undefined : JSON.stringify(body), cache: 'no-store',
   });
   if (!response.ok) throw new ApiError(response.status, response.status === 401
-    ? 'Срок входа истёк. Войдите снова через Google или Telegram.'
+    ? 'Сессия истекла. Войдите через Telegram.'
     : response.status === 409
       ? 'Данные изменились на другом устройстве. Обновите список перед повтором.'
       : `Сервер ответил: ${response.status}`);
@@ -80,7 +80,7 @@ export function CloudSync({ tasks, replaceAllTasks }: {
       // One-time migration for people still signed in with a legacy Google ID token.
       void request<{ token: string }>('/api/auth/google-session', '', 'POST', { credential: token })
         .then(data => { if (!cancelled) acceptSession(data.token); })
-        .catch(() => { if (!cancelled) expireSession('Google-сессия устарела. Войдите повторно — облачные задачи сохранятся.'); });
+        .catch(() => { if (!cancelled) expireSession('Старая Google-сессия истекла. Задачи сохранены в облаке; для доступа потребуется ранее привязанный Telegram.'); });
       return () => { cancelled = true; };
     }
 
