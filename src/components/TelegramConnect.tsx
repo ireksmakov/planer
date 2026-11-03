@@ -14,6 +14,8 @@ type Props = {
 export function TelegramConnect({ mode, token, onAuthenticated, onLinked }: Props) {
   const [available, setAvailable] = useState(false);
   const [botUrl, setBotUrl] = useState('');
+  const [groupUrl, setGroupUrl] = useState('');
+  const [configurationLoaded, setConfigurationLoaded] = useState(false);
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState('');
@@ -22,13 +24,15 @@ export function TelegramConnect({ mode, token, onAuthenticated, onLinked }: Prop
     let cancelled = false;
     void fetch('/api/auth/config', { cache: 'no-store' })
       .then(r => r.ok ? r.json() : Promise.reject())
-      .then((config: { telegram: boolean; botUrl?: string }) => {
+      .then((config: { telegram: boolean; botUrl?: string; groupUrl?: string }) => {
         if (!cancelled) {
           setAvailable(config.telegram);
           setBotUrl(config.botUrl || '');
+          setGroupUrl(config.groupUrl || '');
+          setConfigurationLoaded(true);
         }
       })
-      .catch(() => { if (!cancelled) setAvailable(false); });
+      .catch(() => { if (!cancelled) { setAvailable(false); setConfigurationLoaded(true); } });
     return () => { cancelled = true; };
   }, []);
 
@@ -103,17 +107,20 @@ export function TelegramConnect({ mode, token, onAuthenticated, onLinked }: Prop
     };
   }, [ticket, onAuthenticated, onLinked]);
 
-  if (!available) return null;
+  if (!available) return mode === 'login' && configurationLoaded
+    ? <span className="telegram-not-ready">Вход через Telegram настраивается. Повторите попытку позже.</span>
+    : null;
   return <div className="telegram-auth">
     {!ticket ? <button type="button" disabled={working} onClick={() => { void begin(); }}>
       {working ? 'Подключаем Telegram…' : mode === 'login' ? '✈ Войти через Telegram' : '✈ Привязать Telegram'}
     </button> : <div className="telegram-confirm">
       <a href={ticket.url} target="_blank" rel="noopener noreferrer">Открыть бота в Telegram</a>
-      <span>Нажмите Start в личном чате бота, затем вернитесь в «Планер». Вход подтвердится автоматически.</span>
+      <span>Нажмите Start у бота. При первом входе вступите в группу и нажмите «✅ Проверить подписку» в чате бота. В следующие разы вступать не потребуется.</span>
+      {groupUrl && <a href={groupUrl} target="_blank" rel="noopener noreferrer">🌙 Вступить в группу Планера (только один раз)</a>}
       <button type="button" onClick={() => setTicket(null)}>Отменить</button>
     </div>}
-    {mode === 'login' && <small>Для входа нужен Telegram. После подтверждения бот сможет отправлять напоминания; отключить их можно командой /stop.</small>}
-    {mode === 'link' && <small>Свяжем Telegram с текущим Google-аккаунтом, сохранив ваши задачи. Напоминания будут приходить в личный чат бота.</small>}
+    {mode === 'login' && <small>Новые пользователи один раз вступают в Telegram-группу и подтверждают участие через бота. Последующие входы — без новой подписки. Напоминания можно отключить командой /stop.</small>}
+    {mode === 'link' && <small>Свяжем Telegram с существующим аккаунтом, сохранив ваши задачи. Участие в группе проверяется только при первой привязке.</small>}
     {error && <span className="cloud-error" role="alert">{error}</span>}
     {mode === 'link' && botUrl && <a className="telegram-bot-link" href={botUrl} target="_blank" rel="noopener noreferrer">Открыть чат бота</a>}
   </div>;
