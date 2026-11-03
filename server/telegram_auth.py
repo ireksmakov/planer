@@ -62,6 +62,9 @@ def init_tables(db):
         completed INTEGER NOT NULL DEFAULT 0,
         consumed INTEGER NOT NULL DEFAULT 0
     )""")
+    request_columns = {row[1] for row in db.execute("PRAGMA table_info(telegram_login_requests)").fetchall()}
+    if "membership_required" not in request_columns:
+        db.execute("ALTER TABLE telegram_login_requests ADD COLUMN membership_required INTEGER NOT NULL DEFAULT 0")
     db.execute("""CREATE TABLE IF NOT EXISTS sent_telegram_reminders (
         tg_id TEXT NOT NULL, task_id TEXT NOT NULL,
         task_date TEXT NOT NULL, task_time TEXT NOT NULL, step INTEGER NOT NULL,
@@ -232,13 +235,13 @@ def register_routes(app, database, auth_context, google_uid):
             raise HTTPException(400, "Invalid confirmation")
         with database() as db:
             db.execute("BEGIN IMMEDIATE")
-            row = db.execute("""SELECT mode,tg_id,expires_at,completed,consumed
+            row = db.execute("""SELECT mode,tg_id,expires_at,completed,consumed,membership_required
                 FROM telegram_login_requests WHERE poll_hash=?""", (digest(body.requestId),)).fetchone()
             if row is None or row[2] < int(time.time()):
                 raise HTTPException(410, "Login confirmation expired")
             mode, tg_id, _, completed, consumed = row
             if not completed:
-                return {"status": "pending"}
+                return {"status": "pending", "joinRequired": bool(row[5])}
             if consumed:
                 raise HTTPException(410, "Login confirmation already used")
             db.execute("UPDATE telegram_login_requests SET consumed=1 WHERE poll_hash=?", (digest(body.requestId),))
@@ -269,6 +272,12 @@ def register_routes(app, database, auth_context, google_uid):
         if not already_joined_once:
             status = membership_status(tg_id)
             if status is False:
+                with database() as db:
+                    db.execute(
+                        "UPDATE telegram_login_requests SET membership_required=1 WHERE request_hash=? AND completed=0",
+                        (code_hash,)
+                    )
+                    db.commit()
                 return "join", ("🌙 Для первого входа в «Планер» необходимо один раз "
                                 "вступить в нашу Telegram-группу. Нажмите «Вступить», "
                                 "затем «Проверить подписку». При следующих входах "
