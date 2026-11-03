@@ -17,6 +17,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import Header, HTTPException, Query, Request
 from pydantic import BaseModel, Field
+from server.telegram_membership import configured_group, membership_status, verification_keyboard, answer_callback
 
 SESSION_TTL = 30 * 24 * 60 * 60
 CHALLENGE_TTL = 10 * 60
@@ -43,6 +44,12 @@ def init_tables(db):
         time_zone TEXT NOT NULL DEFAULT 'UTC',
         notifications_enabled INTEGER NOT NULL DEFAULT 1
     )""")
+    # Old Telegram bindings remain intact; existing users verify group membership once.
+    columns = {row[1] for row in db.execute("PRAGMA table_info(telegram_accounts)").fetchall()}
+    if "verified_group_id" not in columns:
+        db.execute("ALTER TABLE telegram_accounts ADD COLUMN verified_group_id TEXT")
+    if "verified_at" not in columns:
+        db.execute("ALTER TABLE telegram_accounts ADD COLUMN verified_at INTEGER")
     db.execute("CREATE INDEX IF NOT EXISTS idx_telegram_accounts_uid ON telegram_accounts(uid)")
     db.execute("""CREATE TABLE IF NOT EXISTS telegram_login_requests (
         request_hash TEXT PRIMARY KEY,
@@ -76,8 +83,11 @@ def lookup_session(db, token: str):
     if provider == "google":
         return subject, provider
     if provider == "telegram":
-        mapped = db.execute("SELECT uid FROM telegram_accounts WHERE tg_id=?", (subject,)).fetchone()
-        if mapped is not None:
+        mapped = db.execute(
+            "SELECT uid,verified_group_id FROM telegram_accounts WHERE tg_id=?", (subject,)
+        ).fetchone()
+        group = configured_group()
+        if mapped is not None and group and mapped[1] == group[0]:
             return mapped[0], provider
     return None
 
@@ -102,13 +112,16 @@ def telegram_enabled() -> bool:
     )
 
 
-def bot_send(chat_id: str, text: str, *, parse_mode: str | None = None) -> bool:
+def bot_send(chat_id: str, text: str, *, parse_mode: str | None = None,
+             reply_markup: dict | None = None) -> bool:
     token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
     if not token or not ID_PATTERN.fullmatch(str(chat_id)):
         return False
     payload = {"chat_id": chat_id, "text": text, "disable_web_page_preview": True}
     if parse_mode == "HTML":
         payload["parse_mode"] = "HTML"
+    if reply_markup is not None:
+        payload["reply_markup"] = reply_markup
     data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     req = http_request.Request(
         "https://api.telegram.org/bot" + token + "/sendMessage",
@@ -140,8 +153,9 @@ def register_routes(app, database, auth_context, google_uid):
     @app.get("/api/auth/config")
     def auth_config():
         return {
-            "telegram": telegram_enabled(),
+            "telegram": telegram_enabled() and configured_group() is not None,
             "botUrl": "https://t.me/" + os.environ.get("TELEGRAM_BOT_USERNAME", "").lstrip("@") if telegram_enabled() else None,
+            "groupUrl": configured_group()[1] if configured_group() else None,
         }
 
     @app.post("/api/auth/google-session")
@@ -178,8 +192,8 @@ def register_routes(app, database, auth_context, google_uid):
 
     @app.post("/api/telegram/start")
     def start_telegram(body: TelegramStart, authorization: str | None = Header(default=None)):
-        if not telegram_enabled():
-            raise HTTPException(503, "Telegram bot is not configured")
+        if not telegram_enabled() or configured_group() is None:
+            raise HTTPException(503, "Telegram group setup is not complete")
         try:
             ZoneInfo(body.timeZone)
         except (ZoneInfoNotFoundError, ValueError):
@@ -233,6 +247,80 @@ def register_routes(app, database, auth_context, google_uid):
             db.commit()
             return {"status": "linked"}
 
+
+    def confirm_group_and_login(tg_id: str, chat_id: str, request_code: str):
+        """Return (kind, message). Check membership before creating/using an account."""
+        config = configured_group()
+        if config is None:
+            return "error", "Группа Планера ещё не настроена. Сообщите администратору."
+        code_hash = digest(request_code)
+        with database() as db:
+            row = db.execute("""SELECT mode,target_uid,time_zone,expires_at,completed
+                FROM telegram_login_requests WHERE request_hash=?""", (code_hash,)).fetchone()
+            account = db.execute(
+                "SELECT uid,verified_group_id FROM telegram_accounts WHERE tg_id=?", (tg_id,)
+            ).fetchone()
+        if row is None or row[3] < int(time.time()) or row[4]:
+            return "error", "⏱ Ссылка для входа устарела. Создайте новую в «Планере»."
+
+        already_joined_once = account is not None and account[1] == config[0]
+        if not already_joined_once:
+            status = membership_status(tg_id)
+            if status is False:
+                return "join", ("🌙 Для первого входа в «Планер» необходимо один раз "
+                                "вступить в нашу Telegram-группу. Нажмите «Вступить», "
+                                "затем «Проверить подписку». При следующих входах "
+                                "повторная подписка не потребуется.")
+            if status is None:
+                return "error", ("Пока не удалось проверить участие в группе. "
+                                 "Бот должен быть администратором группы. "
+                                 "Повторите проверку немного позже.")
+
+        with database() as db:
+            db.execute("BEGIN IMMEDIATE")
+            latest = db.execute("""SELECT mode,target_uid,time_zone,expires_at,completed
+                FROM telegram_login_requests WHERE request_hash=?""", (code_hash,)).fetchone()
+            if latest is None or latest[3] < int(time.time()) or latest[4]:
+                return "error", "⏱ Ссылка для входа устарела. Создайте новую."
+            mode, target_uid, time_zone, _, _ = latest
+            existing = db.execute("SELECT uid FROM telegram_accounts WHERE tg_id=?", (tg_id,)).fetchone()
+            if mode == "link":
+                if existing and existing[0] != target_uid and not existing[0].startswith("tg:"):
+                    return "error", ("Этот Telegram уже привязан к другому аккаунту "
+                                     "«Планера». Подключение отклонено.")
+                if existing and existing[0] != target_uid:
+                    # Preserve both sets of tasks; never overwrite the Google account's tasks.
+                    db.execute("INSERT OR IGNORE INTO users(uid) VALUES(?)", (target_uid,))
+                    changed = db.execute("""INSERT OR IGNORE INTO tasks(uid,id,payload)
+                        SELECT ?,id,payload FROM tasks WHERE uid=?""", (target_uid, existing[0])).rowcount
+                    if changed:
+                        db.execute("UPDATE users SET version=version+1 WHERE uid=?", (target_uid,))
+                uid = target_uid
+                message = ("✅ Telegram привязан к вашему аккаунту «Планера». "
+                           "Проверка вступления в группу сохранена — повторять её не потребуется. "
+                           "Напоминания будут приходить в этот чат. Отключить: /stop.")
+            else:
+                uid = existing[0] if existing else "tg:" + tg_id
+                message = ("✅ Вход в «Планер» подтверждён! "
+                           "Вступление в группу зачтено один раз. "
+                           "Вернитесь на сайт: задачи загрузятся автоматически. "
+                           "Напоминания включены, отключить: /stop.")
+            db.execute("""INSERT INTO telegram_accounts
+                (tg_id,uid,chat_id,time_zone,notifications_enabled,verified_group_id,verified_at)
+                VALUES(?,?,?,?,1,?,?)
+                ON CONFLICT(tg_id) DO UPDATE SET
+                uid=excluded.uid,chat_id=excluded.chat_id,
+                time_zone=excluded.time_zone,notifications_enabled=1,
+                verified_group_id=excluded.verified_group_id,
+                verified_at=excluded.verified_at""",
+                (tg_id,uid,chat_id,time_zone,config[0],int(time.time())))
+            db.execute(
+                "UPDATE telegram_login_requests SET tg_id=?,completed=1 WHERE request_hash=?",
+                (tg_id, code_hash)
+            )
+            db.commit()
+        return "ok", message
+
     @app.post("/api/telegram/webhook")
     async def telegram_webhook(
         request: Request, x_telegram_bot_api_secret_token: str | None = Header(default=None)
@@ -247,6 +335,24 @@ def register_routes(app, database, auth_context, google_uid):
         update = await request.json()
         if not isinstance(update, dict):
             return {"ok": True}
+
+        callback = update.get("callback_query")
+        if isinstance(callback, dict):
+            sender = callback.get("from") or {}
+            original = callback.get("message") or {}
+            chat = original.get("chat") or {}
+            tg_id = str(sender.get("id", "")) if isinstance(sender, dict) else ""
+            chat_id = str(chat.get("id", "")) if isinstance(chat, dict) else ""
+            cb_data = str(callback.get("data", ""))
+            if (isinstance(chat, dict) and chat.get("type") == "private"
+                    and tg_id == chat_id and ID_PATTERN.fullmatch(tg_id)
+                    and re.fullmatch(r"verify_[A-Za-z0-9_-]{24,64}", cb_data)):
+                result, response = confirm_group_and_login(tg_id, chat_id, cb_data[7:])
+                answer_callback(str(callback.get("id", "")), "Проверка завершена" if result == "ok" else "Проверьте сообщение")
+                markup = verification_keyboard(cb_data[7:]) if result == "join" else None
+                bot_send(chat_id, response, reply_markup=markup)
+            return {"ok": True}
+
         message = update.get("message") or {}
         if not isinstance(message, dict):
             return {"ok": True}
@@ -254,76 +360,28 @@ def register_routes(app, database, auth_context, google_uid):
         sender = message.get("from") or {}
         if not isinstance(chat, dict) or not isinstance(sender, dict):
             return {"ok": True}
-        # Only a real user's direct chat with the bot, never groups or channels.
         tg_id, chat_id = str(sender.get("id", "")), str(chat.get("id", ""))
         if chat.get("type") != "private" or tg_id != chat_id or not ID_PATTERN.fullmatch(tg_id):
             return {"ok": True}
-        text = str(message.get("text", ""))
-        if text.startswith("/stop"):
+        text = str(message.get("text", "")).strip()
+        if text == "/stop":
             with database() as db:
-                db.execute(
-                    "UPDATE telegram_accounts SET notifications_enabled=0 WHERE tg_id=?",
-                    (tg_id,)
-                )
+                db.execute("UPDATE telegram_accounts SET notifications_enabled=0 WHERE tg_id=?", (tg_id,))
                 db.commit()
-            bot_send(chat_id, "🔕 Напоминания Планера в Telegram отключены. Чтобы включить снова, отправьте /start.")
+            bot_send(chat_id, "🔕 Напоминания в Telegram отключены. Включить снова: /start.")
             return {"ok": True}
-        if text.strip() in ("/start", "/help"):
-            if text.strip() == "/start":
+        if text in ("/start", "/help"):
+            if text == "/start":
                 with database() as db:
-                    db.execute(
-                        "UPDATE telegram_accounts SET notifications_enabled=1 WHERE tg_id=?",
-                        (tg_id,)
-                    )
+                    db.execute("UPDATE telegram_accounts SET notifications_enabled=1 WHERE tg_id=?", (tg_id,))
                     db.commit()
-            bot_send(chat_id, "🌙 Планер: для входа откройте planer.fizmat-course.com и нажмите «Войти через Telegram». Для отключения сообщений отправьте /stop.")
+            bot_send(chat_id, "🌙 Откройте planer.fizmat-course.com и нажмите «Войти через Telegram». Новым пользователям потребуется вступить в группу только один раз. Отключить напоминания: /stop.")
             return {"ok": True}
-        match = re.fullmatch(r"/start(?:@[A-Za-z0-9_]+)? pl_([A-Za-z0-9_-]{24,64})", text.strip())
-        if not match:
-            return {"ok": True}
-        code_hash = digest(match.group(1))
-        reply = None
-        with database() as db:
-            db.execute("BEGIN IMMEDIATE")
-            row = db.execute("""SELECT mode,target_uid,time_zone,expires_at,completed
-                FROM telegram_login_requests WHERE request_hash=?""", (code_hash,)).fetchone()
-            if row is None or row[3] < int(time.time()) or row[4]:
-                reply = "⏱ Ссылка для входа устарела. Создайте новую в «Планере»."
-            else:
-                mode, target_uid, time_zone, _, _ = row
-                account = db.execute("SELECT uid FROM telegram_accounts WHERE tg_id=?", (tg_id,)).fetchone()
-                if mode == "link":
-                    if account and account[0] != target_uid and not account[0].startswith("tg:"):
-                        reply = "Этот Telegram уже привязан к другому аккаунту «Планера». Для безопасности подключение отклонено."
-                    else:
-                        if account and account[0] != target_uid:
-                            # Preserve Telegram-only tasks when linking to existing Google tasks.
-                            db.execute("INSERT OR IGNORE INTO users(uid) VALUES(?)", (target_uid,))
-                            changed = db.execute("""INSERT OR IGNORE INTO tasks(uid,id,payload)
-                                SELECT ?,id,payload FROM tasks WHERE uid=?""",
-                                (target_uid, account[0])).rowcount
-                            if changed:
-                                db.execute("UPDATE users SET version=version+1 WHERE uid=?", (target_uid,))
-                        db.execute("""INSERT INTO telegram_accounts
-                            (tg_id,uid,chat_id,time_zone,notifications_enabled)
-                            VALUES(?,?,?,?,1)
-                            ON CONFLICT(tg_id) DO UPDATE SET
-                            uid=excluded.uid,chat_id=excluded.chat_id,
-                            time_zone=excluded.time_zone,notifications_enabled=1""",
-                            (tg_id, target_uid, chat_id, time_zone))
-                        db.execute("UPDATE telegram_login_requests SET tg_id=?,completed=1 WHERE request_hash=?", (tg_id,code_hash))
-                        reply = "✅ Telegram привязан к вашему Google-аккаунту «Планера». Напоминания будут приходить в этот чат. Для отключения: /stop."
-                else:
-                    uid = account[0] if account else "tg:" + tg_id
-                    db.execute("""INSERT INTO telegram_accounts
-                        (tg_id,uid,chat_id,time_zone,notifications_enabled)
-                        VALUES(?,?,?,?,1)
-                        ON CONFLICT(tg_id) DO UPDATE SET
-                        chat_id=excluded.chat_id,time_zone=excluded.time_zone,notifications_enabled=1""",
-                        (tg_id, uid, chat_id, time_zone))
-                    db.execute("UPDATE telegram_login_requests SET tg_id=?,completed=1 WHERE request_hash=?", (tg_id, code_hash))
-                    reply = "✅ Вход в «Планер» подтверждён. Вернитесь на сайт — задачи загрузятся автоматически. Напоминания включены. Отключить: /stop."
-            db.commit()
-        if reply:
-            bot_send(chat_id, reply)
+
+        match = re.fullmatch(r"/start(?:@[A-Za-z0-9_]+)? pl_([A-Za-z0-9_-]{24,64})", text)
+        if match:
+            code = match.group(1)
+            result, response = confirm_group_and_login(tg_id, chat_id, code)
+            markup = verification_keyboard(code) if result == "join" else None
+            bot_send(chat_id, response, reply_markup=markup)
         return {"ok": True}
