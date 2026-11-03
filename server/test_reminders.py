@@ -66,14 +66,54 @@ class ReminderScheduleTests(unittest.TestCase):
         task = dict(self.task, date="2026-11-03", time="00:10")
         self.assertEqual(telegram_reminder_stage(task, datetime(2026, 11, 2, 23, 55)), -15)
 
-    def test_end_time_is_displayed_but_does_not_change_reminder_schedule(self):
+    def test_second_repeat_arrives_at_end_of_task(self):
         task = dict(self.task, title="Публикация", endTime="20:15")
         message = telegram_reminder_message(task, -15)
         self.assertIn("Начало: <b>19:21</b>", message)
         self.assertIn("Конец: <b>20:15</b>", message)
         self.assertEqual(telegram_reminder_stage(task, datetime(2026, 11, 2, 19, 6)), -15)
-        self.assertEqual(telegram_reminder_stage(task, datetime(2026, 11, 2, 19, 21)), 0)
-        self.assertIsNone(telegram_reminder_stage(task, datetime(2026, 11, 2, 20, 15)))
+        self.assertEqual(due_reminder_stage(task, datetime(2026, 11, 2, 19, 21)), 0)
+        self.assertEqual(telegram_reminder_stage(task, datetime(2026, 11, 2, 19, 23)), 2)
+        self.assertIsNone(telegram_reminder_stage(task, datetime(2026, 11, 2, 19, 25)))
+        self.assertEqual(telegram_reminder_stage(task, datetime(2026, 11, 2, 20, 15)), 6)
+        self.assertEqual(telegram_reminder_stage(task, datetime(2026, 11, 2, 20, 16)), 6)
+        self.assertIsNone(telegram_reminder_stage(task, datetime(2026, 11, 2, 20, 17)))
+        self.assertIn("ПОВТОРНОЕ НАПОМИНАНИЕ 2/2", telegram_reminder_message(task, 6))
+        self.assertIn("Время, отведённое на задачу, закончилось", telegram_reminder_message(task, 6))
+
+    def test_start_2050_end_2100_ends_at_2100_not_2054(self):
+        task = dict(self.task, date="2026-11-03", time="20:50", endTime="21:00")
+        expected = [
+            ("20:35", -15), ("20:50", 0), ("20:52", 2),
+            ("20:54", None), ("20:59", None), ("21:00", 6),
+            ("21:01", 6), ("21:02", None),
+        ]
+        for clock, stage in expected:
+            with self.subTest(clock=clock):
+                current = datetime.strptime("2026-11-03 " + clock, "%Y-%m-%d %H:%M")
+                self.assertEqual(telegram_reminder_stage(task, current), stage)
+                if stage != -15:
+                    self.assertEqual(due_reminder_stage(task, current), stage)
+
+    def test_end_reminder_respects_repeat_option_and_completion(self):
+        task = dict(self.task, endTime="19:31", repeatReminder=False)
+        self.assertIsNone(telegram_reminder_stage(task, datetime(2026, 11, 2, 19, 31)))
+        task["repeatReminder"] = True
+        task["completed"] = True
+        self.assertIsNone(telegram_reminder_stage(task, datetime(2026, 11, 2, 19, 31)))
+
+    def test_very_short_tasks_skip_first_repeat(self):
+        for end_clock in ("19:22", "19:23"):
+            task = dict(self.task, endTime=end_clock)
+            end_at = datetime.strptime("2026-11-02 " + end_clock, "%Y-%m-%d %H:%M")
+            self.assertEqual(due_reminder_stage(task, end_at), 6)
+            self.assertIsNone(due_reminder_stage(task, end_at + timedelta(minutes=2)))
+            self.assertIsNone(due_reminder_stage(task, datetime(2026, 11, 2, 19, 25)))
+
+    def test_legacy_second_repeat_remains_at_four_minutes(self):
+        task = dict(self.task)
+        self.assertEqual(due_reminder_stage(task, datetime(2026, 11, 2, 19, 25)), 4)
+        self.assertNotIn("Конец:", telegram_reminder_message(task | {"title": "Старая задача"}, 4))
 
     def test_old_tasks_with_no_end_time_keep_working(self):
         task = dict(self.task, title="Старая задача")
