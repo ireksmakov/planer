@@ -172,7 +172,21 @@ export function TelegramConnect({ mode, token, onAuthenticated, onLinked }: Prop
 
   return <div className="telegram-auth">
     {ready ? (
-      <a className="telegram-direct-link" href={ticket.url} target="_blank" rel="noopener noreferrer">
+      <a
+        className="telegram-direct-link"
+        href={ticket.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={event => {
+          // The tab may have stayed open past the one-time link's expiry.
+          if (ticket.expiresAt <= Date.now() + 5000) {
+            event.preventDefault();
+            rememberTicket(mode, null);
+            setTicket(null);
+            void begin(true);
+          }
+        }}
+      >
         {label}
       </a>
     ) : (
