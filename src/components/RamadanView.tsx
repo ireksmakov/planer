@@ -1,4 +1,5 @@
 import { RamadanLibrary } from './RamadanLibrary';
+import { PriorityIndicator } from './PriorityIndicator';
 import { useMemo, useState } from 'react';
 import type { Task, TaskActions } from '../types';
 import { format, addDays, parseISO, isValid } from 'date-fns';
@@ -103,7 +104,7 @@ export function RamadanView({ tasks, addTask, updateTask, toggleTask, deleteTask
               <button type="submit" disabled={!editTitle.trim()}>Сохранить</button>
               <button type="button" onClick={() => setEditingId(null)}>Отмена</button>
             </form> : <>
-              <label><input type="checkbox" checked={t.completed} onChange={() => toggleTask(t.id)} /><span className={t.completed ? 'done' : ''}>{t.title}</span></label>
+              <label><input type="checkbox" checked={t.completed} onChange={() => toggleTask(t.id)} /><span className={t.completed ? 'done' : ''}>{t.title}</span><PriorityIndicator priority={t.priority} compact /></label>
               <div className="ramadan-task-buttons">
                 <button type="button" onClick={() => { setEditingId(t.id); setEditTitle(t.title); }}>Изменить</button>
                 <button type="button" onClick={() => deleteTask(t.id)} aria-label={`Удалить: ${t.title}`}>Удалить</button>
