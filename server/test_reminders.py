@@ -66,6 +66,20 @@ class ReminderScheduleTests(unittest.TestCase):
         task = dict(self.task, date="2026-11-03", time="00:10")
         self.assertEqual(telegram_reminder_stage(task, datetime(2026, 11, 2, 23, 55)), -15)
 
+    def test_end_time_is_displayed_but_does_not_change_reminder_schedule(self):
+        task = dict(self.task, title="Публикация", endTime="20:15")
+        message = telegram_reminder_message(task, -15)
+        self.assertIn("Начало: <b>19:21</b>", message)
+        self.assertIn("Конец: <b>20:15</b>", message)
+        self.assertEqual(telegram_reminder_stage(task, datetime(2026, 11, 2, 19, 6)), -15)
+        self.assertEqual(telegram_reminder_stage(task, datetime(2026, 11, 2, 19, 21)), 0)
+        self.assertIsNone(telegram_reminder_stage(task, datetime(2026, 11, 2, 20, 15)))
+
+    def test_old_tasks_with_no_end_time_keep_working(self):
+        task = dict(self.task, title="Старая задача")
+        self.assertNotIn("Конец:", telegram_reminder_message(task, 0))
+        self.assertEqual(telegram_reminder_stage(task, datetime(2026, 11, 2, 19, 21)), 0)
+
     def test_html_title_bold_and_escaped_with_real_linebreaks(self):
         task = dict(self.task, title='Урок <1> & \'важное\'')
         text = telegram_reminder_message(task, -15)
@@ -77,7 +91,7 @@ class ReminderScheduleTests(unittest.TestCase):
         for stage in (0, 2, 4):
             next_text = telegram_reminder_message(task, stage)
             self.assertIn('<b>Урок &lt;1&gt;', next_text)
-            self.assertIn('Время: <b>19:21</b>', next_text)
+            self.assertIn('Начало: <b>19:21</b>', next_text)
 
 
 if __name__ == "__main__":
