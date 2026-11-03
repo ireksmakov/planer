@@ -48,13 +48,13 @@ export function RamadanView({ tasks, addTask, updateTask, toggleTask, deleteTask
     const existing = ramadanTasks.filter(t => t.date === next);
     for (const task of dayTasks) {
       if (existing.some(t => t.title === task.title && t.time === task.time)) continue;
-      addTask({ title: task.title, date: next, time: task.time, priority: task.priority, category: CATEGORY });
+      addTask({ title: task.title, date: next, time: task.time, endTime: task.endTime, priority: task.priority, category: CATEGORY, repeatReminder: task.repeatReminder });
     }
     setSelected(selected + 1);
   };
   const saveEdit = (task: Task) => {
     if (!editTitle.trim()) return;
-    updateTask(task.id, { title: editTitle.trim(), date: task.date, time: task.time, priority: task.priority, category: task.category });
+    updateTask(task.id, { title: editTitle.trim(), date: task.date, time: task.time, endTime: task.endTime, priority: task.priority, category: task.category, repeatReminder: task.repeatReminder });
     setEditingId(null);
   };
 
