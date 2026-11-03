@@ -125,7 +125,6 @@ export function TelegramConnect({ mode, token, onAuthenticated, onLinked }: Prop
       {joinRequired && groups.map(group => <a key={group.url} href={group.url} target="_blank" rel="noopener noreferrer">🌙 {group.title} — вступить один раз</a>)}
       <button type="button" onClick={() => { setTicket(null); setJoinRequired(false); }}>Отменить</button>
     </div>}
-    {mode === 'login' && <small>Первый вход: один раз вступите в «ФИЗМАТ» и «Мир инвестиций», затем подтвердите обе подписки в боте. При следующих входах повторять не нужно. Напоминания отключаются командой /stop.</small>}
     {mode === 'link' && <small>Свяжем Telegram с существующим аккаунтом, сохранив ваши задачи. Подписки на оба сообщества проверяются только при первой привязке.</small>}
     {error && <span className="cloud-error" role="alert">{error}</span>}
     {mode === 'link' && botUrl && <a className="telegram-bot-link" href={botUrl} target="_blank" rel="noopener noreferrer">Открыть чат бота</a>}
