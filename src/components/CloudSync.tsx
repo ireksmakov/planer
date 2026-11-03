@@ -6,14 +6,8 @@ import { TelegramConnect } from './TelegramConnect';
 
 type Snapshot = { version: number; tasks: Task[] };
 type Identity = { uid: string; provider: 'google' | 'telegram'; telegramLinked: boolean; telegramNotifications: boolean };
-type Credential = { credential?: string };
-type GoogleButtonApi = {
-  initialize: (options: { client_id: string; callback: (value: Credential) => void }) => void;
-  renderButton: (el: HTMLElement, options: Record<string, string>) => void;
-};
-declare global { interface Window { google?: { accounts?: { id?: GoogleButtonApi } } } }
-
-const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
+// Google OAuth remains accepted by the API for previously authenticated users,
+// but new sign-ins are available only through Telegram.
 const OLD_TOKEN_KEY = 'planer.google.id_token.session';
 const SESSION_KEY = 'planer.auth.session.v1';
 
@@ -45,7 +39,6 @@ export function CloudSync({ tasks, replaceAllTasks }: {
   const [identity, setIdentity] = useState<Identity | null>(null);
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState('');
-  const buttonRef = useRef<HTMLDivElement>(null);
   const tasksRef = useRef(tasks);
   tasksRef.current = tasks;
   const cloudIds = useRef(new Set<string>());
@@ -76,30 +69,6 @@ export function CloudSync({ tasks, replaceAllTasks }: {
     setError(message);
     // Preserve local tasks, including edits not yet uploaded, until the next sign-in.
   }, []);
-
-  useEffect(() => {
-    if (!CLIENT_ID || token) return;
-    const script = document.createElement('script');
-    script.src = 'https://accounts.google.com/gsi/client';
-    script.async = true;
-    script.onload = () => {
-      const api = window.google?.accounts?.id;
-      if (!api || !buttonRef.current) return;
-      api.initialize({
-        client_id: CLIENT_ID,
-        callback: (result) => {
-          if (!result.credential) return;
-          // Exchange the one-hour Google ID token for a revocable Planner session.
-          void request<{ token: string }>('/api/auth/google-session', '', 'POST', { credential: result.credential })
-            .then(data => acceptSession(data.token))
-            .catch(e => setError(String(e)));
-        },
-      });
-      api.renderButton(buttonRef.current, { theme: 'outline', size: 'large', text: 'signin_with' });
-    };
-    document.head.appendChild(script);
-    return () => { script.remove(); };
-  }, [token, acceptSession]);
 
   useEffect(() => {
     if (!token) { setConnected(false); return; }
@@ -263,8 +232,7 @@ export function CloudSync({ tasks, replaceAllTasks }: {
 
   return <section className="cloud-strip" aria-label="Вход и синхронизация задач">
     {!token ? <>
-      <span>Войдите, чтобы ваши задачи сохранялись в личном облаке.</span>
-      {CLIENT_ID && <div ref={buttonRef} />}
+      <span>Для входа и синхронизации задач используйте Telegram. В группу нужно вступить только один раз.</span>
       <TelegramConnect mode="login" onAuthenticated={acceptSession} />
     </> : !connected ? <>
       <span>Подключаем задачи…</span>
