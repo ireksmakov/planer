@@ -90,7 +90,8 @@ class ActualTelegramLoginFlowTests(unittest.TestCase):
         first_text, first_kwargs = self.sent_messages.call_args.args[1], self.sent_messages.call_args.kwargs
         self.assertIn("ФИЗМАТ", first_text)
         self.assertIn("Мир инвестиций", first_text)
-        self.assertIn("<b>Для первого входа подпишитесь на оба сообщества:</b>", first_text)
+        self.assertIn("<b>ДЛЯ ПЕРВОГО ВХОДА\\nПОДПИШИТЕСЬ НА ОБА СООБЩЕСТВА:</b>".replace("\\n", "\n"), first_text)
+        self.assertIn("<b>ПОСЛЕ ПОДПИСКИ\\nНАЖМИТЕ «✅ ПРОВЕРИТЬ ПОДПИСКИ»</b>".replace("\\n", "\n"), first_text)
         self.assertEqual(first_kwargs["parse_mode"], "HTML")
         keyboard = first_kwargs["reply_markup"]["inline_keyboard"]
         self.assertEqual(len(keyboard), 3)
