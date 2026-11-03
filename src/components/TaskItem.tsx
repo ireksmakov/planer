@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Task } from '../types';
 import { dateLabel, fromDateKey, toDateKey, today } from '../utils/date';
 import { RescheduleForm } from './RescheduleForm';
+import { PriorityIndicator } from './PriorityIndicator';
 
 interface TaskItemProps {
   task: Task;
@@ -12,12 +13,6 @@ interface TaskItemProps {
   onDelete: (id: string) => void;
   onReschedule: (id: string, targetDate: string) => void;
 }
-
-const priorityLabels = {
-  low: 'низкий',
-  medium: 'средний',
-  high: 'высокий',
-} as const;
 
 export function TaskItem({
   task, index, showOriginalDate = false, onToggle, onEdit, onDelete, onReschedule,
@@ -56,7 +51,7 @@ export function TaskItem({
           )}
           <span>{task.category}</span>
           <span className="meta-divider" aria-hidden="true">/</span>
-          <span className={task.priority === 'high' ? 'priority-high' : ''}>{priorityLabels[task.priority]} приоритет</span>
+          <PriorityIndicator priority={task.priority} />
           {task.time && task.repeatReminder && <span className="task-reminder-mode">🔔 С повторами</span>}
         </div>
       </div>
