@@ -30,17 +30,33 @@ if [[ ! "$bot_username" =~ ^[A-Za-z][A-Za-z0-9_]{4,31}$ ]]; then
   echo "Invalid bot username"; exit 1
 fi
 if [ -z "$bot_token" ]; then
-  # Termius on iPhone sometimes submits an empty value for Bash "read -s".
-  # Disable terminal echo instead, then use the ordinary readable input path.
-  # Restore the terminal even when Ctrl+C or an error interrupts setup.
+  # Keep secrets invisible even in mobile SSH clients. Always restore echo.
   trap 'stty echo </dev/tty 2>/dev/null || true' EXIT
-  stty -echo </dev/tty
-  IFS= read -r -p "Вставьте токен бота из BotFather (символы не отображаются): " bot_token
-  stty echo </dev/tty
-  echo
+  for attempt in 1 2 3; do
+    bot_token=""
+    printf 'Вставьте токен BotFather (попытка %s/3, ввод скрыт): ' "$attempt"
+    stty -echo </dev/tty
+    IFS= read -r bot_token </dev/tty || true
+    stty echo </dev/tty
+    echo
+    # Ignore only common copy/paste whitespace and zero-width markers.
+    bot_token="$(printf '%s' "$bot_token" | tr -d '\r\n\t ' )"
+    if [[ "$bot_token" =~ ^[0-9]{5,20}:[A-Za-z0-9_-]{25,}$ ]]; then
+      break
+    fi
+    if [ -z "$bot_token" ]; then
+      echo "Termius передал 0 символов. Вставка не сработала."
+      echo "Нажмите Paste прямо во время запроса токена, затем Enter."
+    else
+      echo "Получено ${#bot_token} символов, но формат токена неверный."
+      echo "Скопируйте только токен (цифры:буквы) из BotFather, без подписи и кавычек."
+    fi
+    bot_token=""
+  done
 fi
 if [[ ! "$bot_token" =~ ^[0-9]{5,20}:[A-Za-z0-9_-]{25,}$ ]]; then
-  echo "Invalid bot token format"; exit 1
+  echo "Установка остановлена: токен не получен. Задачи не изменены."
+  exit 1
 fi
 export TELEGRAM_BOT_USERNAME="$bot_username"
 export TELEGRAM_BOT_TOKEN="$bot_token"
