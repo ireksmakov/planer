@@ -20,10 +20,10 @@ def due_reminder_stage(task, local_now):
 
     0: start; 2: first repeat two minutes after start;
     6: second repeat at task's end (if an end is provided);
-    4: legacy second repeat at start+4 when no end was specified.
+    60: second repeat at start+60 minutes when no end was specified.
 
-    Distinct stages 6 and 4 ensure old +4 deliveries do not suppress a
-    newly scheduled end-of-task reminder when the task is edited.
+    Stage 60 has its own delivery ID, so any previous stage 4 (+4 minutes)
+    never suppresses the new hour-later reminder.
     """
     if task.get("completed"):
         return None
@@ -64,8 +64,8 @@ def due_reminder_stage(task, local_now):
         start + timedelta(minutes=2)
     ):
         return 2
-    if end is None and is_due(start + timedelta(minutes=4)):
-        return 4
+    if end is None and is_due(start + timedelta(hours=1)):
+        return 60
     return None
 
 
