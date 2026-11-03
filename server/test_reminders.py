@@ -2,7 +2,7 @@
 import unittest
 from datetime import datetime, timezone, timedelta
 
-from server.send_reminders import due_reminder_stage
+from server.send_reminders import due_reminder_stage, telegram_reminder_stage, telegram_reminder_message
 
 
 class ReminderScheduleTests(unittest.TestCase):
@@ -44,6 +44,40 @@ class ReminderScheduleTests(unittest.TestCase):
         task = dict(self.task, date="2026-11-02", time="23:58")
         self.assertEqual(due_reminder_stage(task, datetime(2026, 11, 3, 0, 0)), 2)
         self.assertEqual(due_reminder_stage(task, datetime(2026, 11, 3, 0, 2)), 4)
+
+    def test_telegram_fifteen_minute_warning(self):
+        task = dict(self.task)
+        self.assertEqual(telegram_reminder_stage(task, datetime(2026, 11, 2, 19, 6)), -15)
+        self.assertEqual(telegram_reminder_stage(task, datetime(2026, 11, 2, 19, 7)), -15)
+        self.assertIsNone(telegram_reminder_stage(task, datetime(2026, 11, 2, 19, 8)))
+        self.assertEqual(telegram_reminder_stage(task, datetime(2026, 11, 2, 19, 21)), 0)
+        self.assertEqual(telegram_reminder_stage(task, datetime(2026, 11, 2, 19, 23)), 2)
+        self.assertEqual(telegram_reminder_stage(task, datetime(2026, 11, 2, 19, 25)), 4)
+
+    def test_telegram_warning_without_extra_repeats(self):
+        task = dict(self.task, repeatReminder=False)
+        self.assertEqual(telegram_reminder_stage(task, datetime(2026, 11, 2, 19, 6)), -15)
+        self.assertEqual(telegram_reminder_stage(task, datetime(2026, 11, 2, 19, 21)), 0)
+        self.assertIsNone(telegram_reminder_stage(task, datetime(2026, 11, 2, 19, 23)))
+        task["completed"] = True
+        self.assertIsNone(telegram_reminder_stage(task, datetime(2026, 11, 2, 19, 6)))
+
+    def test_telegram_early_warning_across_midnight(self):
+        task = dict(self.task, date="2026-11-03", time="00:10")
+        self.assertEqual(telegram_reminder_stage(task, datetime(2026, 11, 2, 23, 55)), -15)
+
+    def test_html_title_bold_and_escaped_with_real_linebreaks(self):
+        task = dict(self.task, title='Урок <1> & \'важное\'')
+        text = telegram_reminder_message(task, -15)
+        self.assertIn('Цель: <b>Урок &lt;1&gt; &amp; &#x27;важное&#x27;</b>', text)
+        self.assertIn('15 минут', text)
+        self.assertIn('\n\n', text)
+        self.assertNotIn('\\\\n', text)
+        self.assertIn('<a href="https://planer.fizmat-course.com/">', text)
+        for stage in (0, 2, 4):
+            next_text = telegram_reminder_message(task, stage)
+            self.assertIn('<b>Урок &lt;1&gt;', next_text)
+            self.assertIn('Время: <b>19:21</b>', next_text)
 
 
 if __name__ == "__main__":
