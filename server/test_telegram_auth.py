@@ -1,4 +1,5 @@
 """Regression checks for non-expiring account mappings and Telegram session isolation."""
+import os
 import sqlite3
 import time
 import unittest
@@ -25,16 +26,30 @@ class TelegramAuthTests(unittest.TestCase):
 
     def test_telegram_session_uses_current_linked_google_uid(self):
         tg_id = "987654"
+        required = ("@mathematician24", "@investment2027")
         self.db.execute(
             "INSERT INTO telegram_accounts(tg_id,uid,chat_id,time_zone) VALUES(?,?,?,?)",
             (tg_id, "tg:" + tg_id, tg_id, "UTC")
         )
         token = create_session(self.db, "telegram", tg_id)
         self.db.commit()
-        self.assertEqual(lookup_session(self.db, token), ("tg:" + tg_id, "telegram"))
-        self.db.execute("UPDATE telegram_accounts SET uid=? WHERE tg_id=?", ("google-sub-123", tg_id))
-        self.db.commit()
-        self.assertEqual(lookup_session(self.db, token), ("google-sub-123", "telegram"))
+        # An unverified Telegram account cannot use a Planner session.
+        with patch.dict(os.environ, {"TELEGRAM_REQUIRED_CHAT_IDS": ",".join(required)}):
+            self.assertIsNone(lookup_session(self.db, token))
+            self.db.executemany(
+                """INSERT INTO telegram_verified_communities(tg_id,chat_id,verified_at)
+                VALUES(?,?,?)""",
+                [(tg_id, chat_id, int(time.time())) for chat_id in required],
+            )
+            self.db.commit()
+            self.assertEqual(lookup_session(self.db, token), ("tg:" + tg_id, "telegram"))
+            # Linking to the original Google user keeps the same tasks and UID.
+            self.db.execute(
+                "UPDATE telegram_accounts SET uid=? WHERE tg_id=?",
+                ("google-sub-123", tg_id),
+            )
+            self.db.commit()
+            self.assertEqual(lookup_session(self.db, token), ("google-sub-123", "telegram"))
 
     def test_expired_and_unknown_tokens_rejected(self):
         token = create_session(self.db, "google", "abc")
