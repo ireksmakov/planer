@@ -67,7 +67,7 @@ export function WeekView({ date, tasks, onChangeDate, onOpenDay, addTask, toggle
                       <span className="week-checkbox" aria-hidden="true">{task.completed ? '✓' : ''}</span>
                     </label>
                     <button type="button" className="week-task-open" onClick={() => onOpenDay(day)}>
-                      {task.time && <span className="week-task-time">{task.time}</span>}
+                      {task.time && <span className="week-task-time">{task.time}{task.endTime ? `–${task.endTime}` : ''}</span>}
                       <span className={`week-task-name ${task.priority === 'high' ? 'priority-high' : ''}`}>{task.title}</span>
                     </button>
                   </div>
