@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 type Ticket = { url: string; requestId: string; expiresIn: number };
-type Result = { status: 'pending' | 'authenticated' | 'linked'; token?: string };
+type Result = { status: 'pending' | 'authenticated' | 'linked'; token?: string; joinRequired?: boolean };
 type Mode = 'login' | 'link';
 
 type Props = {
@@ -18,6 +18,7 @@ export function TelegramConnect({ mode, token, onAuthenticated, onLinked }: Prop
   const [configurationLoaded, setConfigurationLoaded] = useState(false);
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [working, setWorking] = useState(false);
+  const [joinRequired, setJoinRequired] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -56,6 +57,7 @@ export function TelegramConnect({ mode, token, onAuthenticated, onLinked }: Prop
         ? 'Привязка доступна при входе через Google.'
         : 'Не удалось создать ссылку для входа (' + response.status + ').');
       const next = await response.json() as Ticket;
+      setJoinRequired(false);
       setTicket(next);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Не удалось подключить Telegram.');
@@ -84,7 +86,11 @@ export function TelegramConnect({ mode, token, onAuthenticated, onLinked }: Prop
         }
         if (!res.ok) return;
         const data = await res.json() as Result;
-        if (cancelled || data.status === 'pending') return;
+        if (cancelled) return;
+        if (data.status === 'pending') {
+          setJoinRequired(Boolean(data.joinRequired));
+          return;
+        }
         setTicket(null);
         if (data.status === 'authenticated' && data.token) onAuthenticated?.(data.token);
         if (data.status === 'linked') onLinked?.();
@@ -116,8 +122,8 @@ export function TelegramConnect({ mode, token, onAuthenticated, onLinked }: Prop
     </button> : <div className="telegram-confirm">
       <a href={ticket.url} target="_blank" rel="noopener noreferrer">Открыть бота в Telegram</a>
       <span>Нажмите Start у бота. При первом входе вступите в группу и нажмите «✅ Проверить подписку» в чате бота. В следующие разы вступать не потребуется.</span>
-      {groupUrl && <a href={groupUrl} target="_blank" rel="noopener noreferrer">🌙 Вступить в группу Планера (только один раз)</a>}
-      <button type="button" onClick={() => setTicket(null)}>Отменить</button>
+      {joinRequired && groupUrl && <a href={groupUrl} target="_blank" rel="noopener noreferrer">🌙 Вступить в группу Планера (только один раз)</a>}
+      <button type="button" onClick={() => { setTicket(null); setJoinRequired(false); }}>Отменить</button>
     </div>}
     {mode === 'login' && <small>Новые пользователи один раз вступают в Telegram-группу и подтверждают участие через бота. Последующие входы — без новой подписки. Напоминания можно отключить командой /stop.</small>}
     {mode === 'link' && <small>Свяжем Telegram с существующим аккаунтом, сохранив ваши задачи. Участие в группе проверяется только при первой привязке.</small>}
