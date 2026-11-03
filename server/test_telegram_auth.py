@@ -36,10 +36,11 @@ class TelegramAuthTests(unittest.TestCase):
         # An unverified Telegram account cannot use a Planner session.
         with patch.dict(os.environ, {"TELEGRAM_REQUIRED_CHAT_IDS": ",".join(required)}):
             self.assertIsNone(lookup_session(self.db, token))
-            self.db.executemany(
-                """INSERT INTO telegram_verified_communities(tg_id,chat_id,verified_at)
-                VALUES(?,?,?)""",
-                [(tg_id, chat_id, int(time.time())) for chat_id in required],
+            # Explicit confirmation, not legacy per-channel cached rows.
+            self.db.execute(
+                """UPDATE telegram_accounts SET
+                   membership_verified_set=?,membership_verified_at=? WHERE tg_id=?""",
+                (",".join(sorted(required)), int(time.time()), tg_id),
             )
             self.db.commit()
             self.assertEqual(lookup_session(self.db, token), ("tg:" + tg_id, "telegram"))
