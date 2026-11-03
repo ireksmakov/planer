@@ -105,7 +105,14 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .field input::placeholder { color: var(--ink); opacity: .48; }
 .field input[aria-invalid='true'] { border-color: var(--accent); }
 .field-title input { font-size: 18px; height: 53px; }
-.task-form-fields { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 15px; }
+.task-form-fields { display: grid; grid-template-columns: repeat(6, minmax(0,1fr)); gap: 15px; }
+.task-form:not(.task-form-compact) .field-date,
+.task-form:not(.task-form-compact) .field-start,
+.task-form:not(.task-form-compact) .field-end { grid-column: span 2; }
+.task-form:not(.task-form-compact) .field-priority,
+.task-form:not(.task-form-compact) .field-category { grid-column: span 3; }
+.task-time-range { font-size: 19px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.week-task-time { overflow-wrap: anywhere; }
 .form-error { display: block; margin: -6px 0 12px; color: var(--accent); font-size: 12px; }
 .form-actions { display: flex; gap: 22px; align-items: center; margin-top: 21px; }
 
@@ -219,6 +226,12 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   .task-meta { margin-top: 9px; gap: 7px; }
   .task-actions { gap: 10px; }
   .task-form-fields { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .task-form:not(.task-form-compact) .field-date { grid-column: span 2; }
+  .task-form:not(.task-form-compact) .field-start,
+  .task-form:not(.task-form-compact) .field-end,
+  .task-form:not(.task-form-compact) .field-priority,
+  .task-form:not(.task-form-compact) .field-category { grid-column: span 1; }
+  .task-time-range { font-size: 16px; }
   .field input, .field select { font-size: 12px; }
   .week-column { grid-template-columns: 89px minmax(0,1fr); gap: 0 12px; padding: 0 10px; }
   .week-day-head { margin-right: 5px; }
@@ -562,6 +575,11 @@ body { background-color: var(--paper); }
   .task-form-fields, .task-form-compact .task-form-fields {
     grid-template-columns: minmax(0,1fr);
   }
+  .task-form:not(.task-form-compact) .field-date,
+  .task-form:not(.task-form-compact) .field-start,
+  .task-form:not(.task-form-compact) .field-end,
+  .task-form:not(.task-form-compact) .field-priority,
+  .task-form:not(.task-form-compact) .field-category { grid-column: auto; }
   .task-form { padding-inline: 12px; }
   .task-right { align-items: flex-start; }
   .masthead { padding-inline: 13px; }
