@@ -30,7 +30,13 @@ if [[ ! "$bot_username" =~ ^[A-Za-z][A-Za-z0-9_]{4,31}$ ]]; then
   echo "Invalid bot username"; exit 1
 fi
 if [ -z "$bot_token" ]; then
-  read -r -s -p "Вставьте токен бота из BotFather (символы не отображаются): " bot_token
+  # Termius on iPhone sometimes submits an empty value for Bash "read -s".
+  # Disable terminal echo instead, then use the ordinary readable input path.
+  # Restore the terminal even when Ctrl+C or an error interrupts setup.
+  trap 'stty echo </dev/tty 2>/dev/null || true' EXIT
+  stty -echo </dev/tty
+  IFS= read -r -p "Вставьте токен бота из BotFather (символы не отображаются): " bot_token
+  stty echo </dev/tty
   echo
 fi
 if [[ ! "$bot_token" =~ ^[0-9]{5,20}:[A-Za-z0-9_-]{25,}$ ]]; then
