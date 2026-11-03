@@ -1181,3 +1181,15 @@ body { background-color: var(--paper); }
 .telegram-connected{font-size:11px;color:#215b42;font-weight:700}
 .telegram-bot-link{font-size:11px;color:#215b42;text-decoration:underline}
 @media(max-width:600px){.telegram-auth{flex-basis:100%;min-width:0}.telegram-auth>button{width:100%;min-height:44px}.telegram-confirm a{font-size:14px}}
+
+/* Task duration: compact readable start–end range in responsive task rows. */
+.task-item .task-time-range {
+  font-family: 'Satoshi', 'Manrope', sans-serif;
+  font-size: 17px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+@media (max-width: 600px) {
+  .task-item .task-time-range { font-size: 14px; }
+}
