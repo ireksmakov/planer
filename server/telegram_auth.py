@@ -313,10 +313,13 @@ def register_routes(app, database, auth_context, google_uid):
                     "📚 ФИЗМАТ\n"
                     "📈 Мир инвестиций\n\n"
                     "После подписки нажмите «✅ Проверить подписки». "
-                    "Повторная проверка при следующих входах не понадобится.",
+                    "Если останетесь подписаны, в следующие разы повторять не нужно.",
                     [g["id"] for g in groups])
 
-        if not previously_confirmed:
+        # Even previously verified accounts must still be subscribed when
+        # logging in again. This is a silent check: no repeated button press
+        # if they remain members, but leaving either channel closes the gate.
+        if check_pressed or previously_confirmed:
             missing = []
             unavailable = []
             for group in groups:
@@ -330,6 +333,12 @@ def register_routes(app, database, auth_context, google_uid):
                     db.execute("""UPDATE telegram_login_requests
                         SET membership_required=1 WHERE request_hash=? AND completed=0""",
                         (code_hash,))
+                    # An account that left a community must no longer be
+                    # treated as previously verified in future logins.
+                    if missing:
+                        db.execute("""UPDATE telegram_accounts
+                            SET membership_verified_set='',membership_verified_at=0
+                            WHERE tg_id=?""", (tg_id,))
                     db.commit()
                 if unavailable:
                     return ("error", "⚠️ Не удалось проверить подписки Telegram. "
