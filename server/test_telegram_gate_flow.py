@@ -118,14 +118,25 @@ class ActualTelegramLoginFlowTests(unittest.TestCase):
         with planner_app.database() as db:
             self.assertEqual(lookup_session(db, authenticated["token"]), ("tg:12345", "telegram"))
 
-        # One-time verification: same Telegram user can log in again without joining.
+        # Return login: membership is checked silently; no repeated join action.
         again_code, again_request_id = self.begin()
-        with patch("server.telegram_auth.membership_status",
-                   side_effect=AssertionError("already verified; should not ask again")):
+        with patch("server.telegram_auth.membership_status", side_effect=[True, True]) as checker:
             self.send_start(again_code)
+            self.assertEqual(checker.call_count, 2)
         self.assertIn("Вход в «Планер» подтверждён", self.sent_messages.call_args.args[1])
         self.assertEqual(self.status(TelegramStatus(requestId=again_request_id))["status"],
                          "authenticated")
+        # If someone leaves a channel later, new login must be denied.
+        left_code, left_request_id = self.begin()
+        with patch("server.telegram_auth.membership_status", side_effect=[False, True]):
+            self.send_start(left_code)
+        self.assertIn("Вход пока закрыт", self.sent_messages.call_args.args[1])
+        self.assertEqual(self.status(TelegramStatus(requestId=left_request_id))["status"],
+                         "pending")
+        with planner_app.database() as db:
+            self.assertFalse(db.execute(
+                "SELECT membership_verified_at FROM telegram_accounts WHERE tg_id='12345'"
+            ).fetchone()[0])
 
     def test_legacy_cached_receipts_cannot_bypass_required_join_buttons(self):
         with planner_app.database() as db:
