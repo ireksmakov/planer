@@ -12,6 +12,7 @@ from zoneinfo import ZoneInfo
 from pywebpush import WebPushException, webpush
 
 from server.app import database
+from server.telegram_auth import bot_send
 
 def due_reminder_stage(task, local_now):
     """Return 0 (at due time), 2, 4, or None; allow up to a minute for timer drift.
@@ -30,6 +31,51 @@ def due_reminder_stage(task, local_now):
             if scheduled == timestamp.strftime("%Y-%m-%d %H:%M"):
                 return step
     return None
+
+
+def send_telegram_reminders(db, now):
+    """Send due tasks to linked personal Telegram chats, respecting /stop and deduplication."""
+    sent = 0
+    accounts = db.execute("""SELECT tg_id,uid,chat_id,time_zone FROM telegram_accounts
+        WHERE notifications_enabled=1""").fetchall()
+    for tg_id, uid, chat_id, time_zone in accounts:
+        try:
+            local_time = now.astimezone(ZoneInfo(time_zone))
+        except Exception:
+            continue
+        tasks = db.execute("SELECT id,payload FROM tasks WHERE uid=?", (uid,)).fetchall()
+        for task_id, raw in tasks:
+            try:
+                task = json.loads(raw)
+                stage = due_reminder_stage(task, local_time)
+                if stage is None:
+                    continue
+                task_date, task_time = task["date"], task["time"]
+                created = db.execute("""INSERT OR IGNORE INTO sent_telegram_reminders
+                    (tg_id,task_id,task_date,task_time,step) VALUES(?,?,?,?,?)""",
+                    (tg_id,task_id,task_date,task_time,stage)).rowcount
+                if not created:
+                    continue
+                db.commit()
+                header = "⏰ Напоминание" if stage == 0 else (
+                    "🔔 Повтор 1/2" if stage == 2 else "🔔 Повтор 2/2"
+                )
+                body = header + "\\n" + str(task["title"])[:350] + "\\nВремя: " + task_time
+                # No links, account IDs, or chat names in the message.
+                if bot_send(chat_id, body):
+                    sent += 1
+                else:
+                    db.execute("""DELETE FROM sent_telegram_reminders
+                        WHERE tg_id=? AND task_id=? AND task_date=? AND task_time=? AND step=?""",
+                        (tg_id,task_id,task_date,task_time,stage))
+                    db.commit()
+                    print("Telegram reminder could not be delivered", file=sys.stderr)
+            except (KeyError, ValueError, TypeError):
+                continue
+    cutoff = (now - timedelta(days=35)).strftime("%Y-%m-%d")
+    db.execute("DELETE FROM sent_telegram_reminders WHERE task_date < ?", (cutoff,))
+    db.commit()
+    return sent
 
 
 def run():
@@ -116,12 +162,13 @@ def run():
                         print("Push delivery error", file=sys.stderr)
                 except (KeyError, ValueError, TypeError):
                     continue
+        telegram_sent = send_telegram_reminders(db, now)
         # Keep deduplication records for 35 days only.
         cutoff = (now - timedelta(days=35)).strftime("%Y-%m-%d")
         db.execute("DELETE FROM sent_reminders WHERE task_date < ?", (cutoff,))
         db.execute("DELETE FROM sent_repeat_reminders WHERE task_date < ?", (cutoff,))
         db.commit()
-    print("Reminders sent:", sent)
+    print("Web Push reminders sent:", sent, "Telegram reminders sent:", telegram_sent)
     return 0
 
 if __name__ == "__main__":
