@@ -4,7 +4,7 @@ import sqlite3
 import unittest
 from unittest.mock import patch
 
-from server.telegram_auth import create_session, init_tables, lookup_session
+from server.telegram_auth import create_session, init_tables, lookup_session, required_community_key, membership_already_confirmed
 from server.telegram_membership import configured_groups, membership_status, verification_keyboard
 
 SETTINGS = {"TELEGRAM_REQUIRED_CHAT_IDS": "@mathematician24,@investment2027"}
@@ -57,7 +57,7 @@ class GroupGateTests(unittest.TestCase):
         self.assertEqual(len(only_second["inline_keyboard"]), 2)
         self.assertEqual(only_second["inline_keyboard"][0][0]["text"], "🌙 Мир инвестиций")
 
-    def test_telegram_session_requires_two_one_time_receipts(self):
+    def test_old_receipts_cannot_bypass_explicit_verification(self):
         db = sqlite3.connect(":memory:")
         init_tables(db)
         token = create_session(db, "telegram", "12345")
@@ -65,19 +65,22 @@ class GroupGateTests(unittest.TestCase):
             "INSERT INTO telegram_accounts (tg_id,uid,chat_id,time_zone) VALUES(?,?,?,?)",
             ("12345", "tg:12345", "12345", "UTC"),
         )
+        db.executemany("""INSERT INTO telegram_verified_communities
+            (tg_id,chat_id,verified_at) VALUES(?,?,?)""",
+            [("12345", chat_id, 123456) for chat_id in GROUP_IDS])
         db.commit()
         with patch.dict(os.environ, SETTINGS):
+            # Before v2 a /start could create these receipts automatically.
             self.assertIsNone(lookup_session(db, token))
-            db.execute("""INSERT INTO telegram_verified_communities
-                (tg_id,chat_id,verified_at) VALUES(?,?,?)""", ("12345", GROUP_IDS[0], 123456))
-            db.commit()
-            self.assertIsNone(lookup_session(db, token))
-            db.execute("""INSERT INTO telegram_verified_communities
-                (tg_id,chat_id,verified_at) VALUES(?,?,?)""", ("12345", GROUP_IDS[1], 123456))
+            self.assertFalse(membership_already_confirmed(db, "12345"))
+            db.execute("""UPDATE telegram_accounts SET
+                membership_verified_set=?,membership_verified_at=?
+                WHERE tg_id=?""",
+                (required_community_key(), 123456, "12345"))
             db.commit()
             self.assertEqual(lookup_session(db, token), ("tg:12345", "telegram"))
             with patch("server.telegram_membership.telegram_api",
-                       side_effect=AssertionError("Never recheck once verified")):
+                       side_effect=AssertionError("Do not recheck after explicit confirmation")):
                 self.assertEqual(lookup_session(db, token), ("tg:12345", "telegram"))
         db.close()
 
@@ -90,9 +93,9 @@ class GroupGateTests(unittest.TestCase):
             "INSERT INTO telegram_accounts(tg_id,uid,chat_id,time_zone) VALUES(?,?,?,?)",
             ("12345", "original-user", "12345", "UTC"),
         )
-        db.executemany("""INSERT INTO telegram_verified_communities
-            (tg_id,chat_id,verified_at) VALUES(?,?,?)""",
-            [("12345", ident, 123456) for ident in GROUP_IDS])
+        db.execute("""UPDATE telegram_accounts SET
+            membership_verified_set=?,membership_verified_at=? WHERE tg_id=?""",
+            (",".join(sorted(GROUP_IDS)), 123456, "12345"))
         db.commit()
         with patch.dict(os.environ, SETTINGS):
             self.assertEqual(lookup_session(db, google_token), ("original-user", "google"))
