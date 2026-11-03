@@ -87,7 +87,9 @@ def lookup_session(db, token: str):
             "SELECT uid,verified_group_id FROM telegram_accounts WHERE tg_id=?", (subject,)
         ).fetchone()
         group = configured_group()
-        if mapped is not None and group and mapped[1] == group[0]:
+        # During initial setup no group is configured yet; do not disconnect
+        # existing users. Once configured, require their one-time verification.
+        if mapped is not None and (group is None or mapped[1] == group[0]):
             return mapped[0], provider
     return None
 
