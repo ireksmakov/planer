@@ -16,44 +16,55 @@ from server.app import database
 from server.telegram_auth import bot_send
 
 def due_reminder_stage(task, local_now):
-    """Reminder stages: start=0, first repeat=2, end repeat=6.
+    """Return the due reminder's stage, with one-minute timer grace.
 
-    For older tasks without an end time, the original +4 minute repeat uses
-    stage=4. All stages allow a one-minute timer grace period; the separate
-    stage=6 ID prevents an old +4 delivery from suppressing a new end reminder.
+    0: start; 2: first repeat two minutes after start;
+    6: second repeat at task's end (if an end is provided);
+    4: legacy second repeat at start+4 when no end was specified.
+
+    Distinct stages 6 and 4 ensure old +4 deliveries do not suppress a
+    newly scheduled end-of-task reminder when the task is edited.
     """
     if task.get("completed"):
         return None
-
-    task_date = str(task.get("date", ""))
-    start = str(task.get("time", ""))
-    scheduled = task_date + " " + start
-    repeat = task.get("repeatReminder") is True
-    end = str(task.get("endTime") or "")
-    has_end = bool(end and len(end) == 5 and end > start)
-
-    def is_due(timestamp):
-        return any(timestamp == (local_now - timedelta(minutes=delay)).strftime("%Y-%m-%d %H:%M")
-                   for delay in (0, 1))
-
-    # Prioritize the end of a short task over a +1-minute grace reminder.
-    if repeat and has_end and is_due(task_date + " " + end):
-        return 6
-    if is_due(scheduled):
-        return 0
-    if not repeat:
-        return None
-
-    # For tasks lasting <=2 minutes, do not send repeat 1/2 at or after the end.
     try:
-        start_dt = datetime.strptime(scheduled, "%Y-%m-%d %H:%M")
-    except ValueError:
+        start = datetime.strptime(
+            str(task["date"]) + " " + str(task["time"]), "%Y-%m-%d %H:%M"
+        )
+    except (KeyError, TypeError, ValueError):
         return None
-    if (not has_end or datetime.strptime(task_date + " " + end, "%Y-%m-%d %H:%M") > start_dt + timedelta(minutes=2)) and is_due(
-        (start_dt + timedelta(minutes=2)).strftime("%Y-%m-%d %H:%M")
+
+    end = None
+    if task.get("endTime"):
+        try:
+            candidate = datetime.strptime(
+                str(task["date"]) + " " + str(task["endTime"]), "%Y-%m-%d %H:%M"
+            )
+            if candidate > start:
+                end = candidate
+        except (KeyError, TypeError, ValueError):
+            pass  # Invalid legacy end time behaves like an unset end time.
+
+    def is_due(when):
+        stamp = when.strftime("%Y-%m-%d %H:%M")
+        return any(
+            stamp == (local_now - timedelta(minutes=grace)).strftime("%Y-%m-%d %H:%M")
+            for grace in (0, 1)
+        )
+
+    # End takes priority over +1 minute timer grace of any earlier reminder.
+    if task.get("repeatReminder") is True and end and is_due(end):
+        return 6
+    if is_due(start):
+        return 0
+    if task.get("repeatReminder") is not True:
+        return None
+    # Do not schedule the first repeat at or after a short task's end.
+    if (end is None or end > start + timedelta(minutes=2)) and is_due(
+        start + timedelta(minutes=2)
     ):
         return 2
-    if not has_end and is_due((start_dt + timedelta(minutes=4)).strftime("%Y-%m-%d %H:%M")):
+    if end is None and is_due(start + timedelta(minutes=4)):
         return 4
     return None
 
