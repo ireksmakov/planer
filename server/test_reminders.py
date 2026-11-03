@@ -132,6 +132,27 @@ class ReminderScheduleTests(unittest.TestCase):
         self.assertNotIn("Конец:", telegram_reminder_message(task, 0))
         self.assertEqual(telegram_reminder_stage(task, datetime(2026, 11, 2, 19, 21)), 0)
 
+    def test_colored_priority_marker_is_first_in_every_telegram_reminder(self):
+        for priority, marker, label in (
+            ("high", "🔴", "ВЫСОКИЙ ПРИОРИТЕТ"),
+            ("medium", "🟡", "СРЕДНИЙ ПРИОРИТЕТ"),
+            ("low", "🟢", "НИЗКИЙ ПРИОРИТЕТ"),
+        ):
+            task = dict(self.task, title="<Важная> цель", priority=priority, endTime="20:21")
+            for stage in (-15, 0, 2, 6, 60):
+                with self.subTest(priority=priority, stage=stage):
+                    lines = telegram_reminder_message(task, stage).splitlines()
+                    self.assertEqual(lines[0], marker + " <b>" + label + "</b>")
+                    self.assertTrue(lines[1].startswith("<b>"))
+                    self.assertIn("Цель: <b>&lt;Важная&gt; цель</b>", "\n".join(lines))
+                    self.assertIn("Конец: <b>20:21</b>", "\n".join(lines))
+
+    def test_missing_or_unknown_priority_uses_neutral_medium_marker(self):
+        task = dict(self.task, title="Общее дело")
+        self.assertTrue(telegram_reminder_message(task, -15).startswith("🟡"))
+        task["priority"] = "unknown"
+        self.assertTrue(telegram_reminder_message(task, 0).startswith("🟡"))
+
     def test_html_title_bold_and_escaped_with_real_linebreaks(self):
         task = dict(self.task, title='Урок <1> & \'важное\'')
         text = telegram_reminder_message(task, -15)
