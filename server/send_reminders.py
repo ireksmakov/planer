@@ -6,6 +6,7 @@ Each subscription belongs to one verified Google account and one device.
 import json
 import os
 import sys
+from html import escape
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
@@ -33,6 +34,50 @@ def due_reminder_stage(task, local_now):
     return None
 
 
+def telegram_reminder_stage(task, local_now):
+    """Telegram-only heads-up 15 minutes before due; preserve normal reminder schedule."""
+    if task.get("completed"):
+        return None
+    scheduled = str(task.get("date", "")) + " " + str(task.get("time", ""))
+    # One-minute grace for the systemd timer. The DB step=-15 prevents duplicates.
+    for grace in (0, 1):
+        ahead = local_now + timedelta(minutes=15 - grace)
+        if scheduled == ahead.strftime("%Y-%m-%d %H:%M"):
+            return -15
+    return due_reminder_stage(task, local_now)
+
+
+def telegram_reminder_message(task, stage):
+    """Telegram HTML with real line breaks and escaped user-supplied task names."""
+    name = escape(str(task["title"])[:350])
+    when = escape(str(task["time"]))
+    if stage == -15:
+        heading = "🕌 НАПОМИНАНИЕ О ЦЕЛИ"
+        detail = "⏳ До вашей цели осталось <b>15 минут</b>."
+        closing = "Пусть Аллах дарует баракат вашему времени и облегчит задуманное."
+    elif stage == 0:
+        heading = "🌙 ВРЕМЯ ЦЕЛИ НАСТУПИЛО"
+        detail = "✨ Время приступить к запланированному делу."
+        closing = "Пусть ваше дело принесёт пользу и будет совершено с добрым намерением."
+    else:
+        heading = "🔔 ПОВТОРНОЕ НАПОМИНАНИЕ " + ("1/2" if stage == 2 else "2/2")
+        detail = "🌿 Цель ещё отмечена как невыполненная."
+        closing = "Если вы уже завершили дело, отметьте его выполненным в Планере."
+    return "\n".join((
+        f"<b>{heading}</b>",
+        "﴿ بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ ﴾",
+        "",
+        detail,
+        "",
+        f"🎯 Цель: <b>{name}</b>",
+        f"🕰 Время: <b>{when}</b>",
+        "",
+        f"<i>{closing}</i>",
+        "",
+        '📖 <a href="https://planer.fizmat-course.com/">Открыть Планер</a>',
+    ))
+
+
 def send_telegram_reminders(db, now):
     """Send due tasks to linked personal Telegram chats, respecting /stop and deduplication."""
     sent = 0
@@ -47,7 +92,7 @@ def send_telegram_reminders(db, now):
         for task_id, raw in tasks:
             try:
                 task = json.loads(raw)
-                stage = due_reminder_stage(task, local_time)
+                stage = telegram_reminder_stage(task, local_time)
                 if stage is None:
                     continue
                 task_date, task_time = task["date"], task["time"]
@@ -57,12 +102,8 @@ def send_telegram_reminders(db, now):
                 if not created:
                     continue
                 db.commit()
-                header = "⏰ Напоминание" if stage == 0 else (
-                    "🔔 Повтор 1/2" if stage == 2 else "🔔 Повтор 2/2"
-                )
-                body = header + "\\n" + str(task["title"])[:350] + "\\nВремя: " + task_time
-                # No links, account IDs, or chat names in the message.
-                if bot_send(chat_id, body):
+                body = telegram_reminder_message(task, stage)
+                if bot_send(chat_id, body, parse_mode="HTML"):
                     sent += 1
                 else:
                     db.execute("""DELETE FROM sent_telegram_reminders
