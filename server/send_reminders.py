@@ -16,21 +16,45 @@ from server.app import database
 from server.telegram_auth import bot_send
 
 def due_reminder_stage(task, local_now):
-    """Return 0 (at due time), 2, 4, or None; allow up to a minute for timer drift.
+    """Reminder stages: start=0, first repeat=2, end repeat=6.
 
-    This keeps default reminders unchanged and only repeats when explicitly enabled.
+    For older tasks without an end time, the original +4 minute repeat uses
+    stage=4. All stages allow a one-minute timer grace period; the separate
+    stage=6 ID prevents an old +4 delivery from suppressing a new end reminder.
     """
     if task.get("completed"):
         return None
-    scheduled = str(task.get("date", "")) + " " + str(task.get("time", ""))
+
+    task_date = str(task.get("date", ""))
+    start = str(task.get("time", ""))
+    scheduled = task_date + " " + start
     repeat = task.get("repeatReminder") is True
-    for step in (0, 2, 4):
-        if step and not repeat:
-            continue
-        for delay in (0, 1):
-            timestamp = local_now - timedelta(minutes=step + delay)
-            if scheduled == timestamp.strftime("%Y-%m-%d %H:%M"):
-                return step
+    end = str(task.get("endTime") or "")
+    has_end = bool(end and len(end) == 5 and end > start)
+
+    def is_due(timestamp):
+        return any(timestamp == (local_now - timedelta(minutes=delay)).strftime("%Y-%m-%d %H:%M")
+                   for delay in (0, 1))
+
+    # Prioritize the end of a short task over a +1-minute grace reminder.
+    if repeat and has_end and is_due(task_date + " " + end):
+        return 6
+    if is_due(scheduled):
+        return 0
+    if not repeat:
+        return None
+
+    # For tasks lasting <=2 minutes, do not send repeat 1/2 at or after the end.
+    try:
+        start_dt = datetime.strptime(scheduled, "%Y-%m-%d %H:%M")
+    except ValueError:
+        return None
+    if (not has_end or datetime.strptime(task_date + " " + end, "%Y-%m-%d %H:%M") > start_dt + timedelta(minutes=2)) and is_due(
+        (start_dt + timedelta(minutes=2)).strftime("%Y-%m-%d %H:%M")
+    ):
+        return 2
+    if not has_end and is_due((start_dt + timedelta(minutes=4)).strftime("%Y-%m-%d %H:%M")):
+        return 4
     return None
 
 
@@ -62,7 +86,8 @@ def telegram_reminder_message(task, stage):
         closing = "Пусть ваше дело принесёт пользу и будет совершено с добрым намерением."
     else:
         heading = "🔔 ПОВТОРНОЕ НАПОМИНАНИЕ " + ("1/2" if stage == 2 else "2/2")
-        detail = "🌿 Цель ещё отмечена как невыполненная."
+        detail = ("🏁 Время, отведённое на задачу, закончилось."
+                  if stage == 6 else "🌿 Цель ещё отмечена как невыполненная.")
         closing = "Если вы уже завершили дело, отметьте его выполненным в Планере."
     return "\n".join((
         f"<b>{heading}</b>",
@@ -163,7 +188,8 @@ def run():
                     )
                     payload = json.dumps({
                         "title": heading,
-                        "body": str(task["title"])[:350],
+                        "body": (str(task["title"])[:300] + (" · Конец: " + str(task["endTime"])
+                            if stage == 6 else "")),
                         "tag": "planer-" + task_id[:80] + "-" + date + "-" + time + "-" + str(stage),
                     }, ensure_ascii=False)
                     def release_failed_delivery():
