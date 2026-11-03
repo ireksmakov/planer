@@ -51,6 +51,7 @@ def telegram_reminder_message(task, stage):
     """Telegram HTML with real line breaks and escaped user-supplied task names."""
     name = escape(str(task["title"])[:350])
     when = escape(str(task["time"]))
+    end_time = escape(str(task.get("endTime") or ""))
     if stage == -15:
         heading = "🕌 НАПОМИНАНИЕ О ЦЕЛИ"
         detail = "⏳ До вашей цели осталось <b>15 минут</b>."
@@ -70,7 +71,8 @@ def telegram_reminder_message(task, stage):
         detail,
         "",
         f"🎯 Цель: <b>{name}</b>",
-        f"🕰 Время: <b>{when}</b>",
+        f"🕰 Начало: <b>{when}</b>",
+        *( [f"🏁 Конец: <b>{end_time}</b>"] if end_time else [] ),
         "",
         f"<i>{closing}</i>",
         "",
