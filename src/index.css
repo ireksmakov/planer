@@ -1149,3 +1149,17 @@ body { background-color: var(--paper); }
 .reminder-repeat-option strong{font-size:13px}
 .reminder-repeat-option small{font-size:11px;line-height:1.55;color:var(--muted)}
 .task-reminder-mode{color:var(--completed);font-weight:700}
+
+
+/* Telegram: optional, one-time bot confirmation without exposing credentials. */
+.telegram-auth{display:flex;flex-direction:column;gap:7px;min-width:190px;max-width:100%;flex:1 1 220px}
+.telegram-auth>button{border:1px solid #39715b;background:#eff7f0;color:#174733;border-radius:8px;padding:10px 13px;font-size:13px;font-weight:700}
+.telegram-auth>button:hover{background:#d5ecdc}
+.telegram-auth small{color:#50715d;line-height:1.55;font-size:10px}
+.telegram-confirm{display:flex;flex-direction:column;gap:9px;padding:10px;border:1px solid #b0cabb;background:#f6fbf7;border-radius:10px}
+.telegram-confirm a{display:inline-block;text-decoration:underline;color:#225e44;font-weight:700;font-size:13px}
+.telegram-confirm span{color:#4a6956;font-size:11px;line-height:1.55}
+.telegram-confirm button{align-self:flex-start;font-size:11px}
+.telegram-connected{font-size:11px;color:#215b42;font-weight:700}
+.telegram-bot-link{font-size:11px;color:#215b42;text-decoration:underline}
+@media(max-width:600px){.telegram-auth{flex-basis:100%;min-width:0}.telegram-auth>button{width:100%;min-height:44px}.telegram-confirm a{font-size:14px}}
