@@ -434,7 +434,7 @@ def register_routes(app, database, auth_context, google_uid):
                 markup = verification_keyboard(cb_data[7:], missing) if result == "join" else None
                 bot_send(
                     chat_id, response, reply_markup=markup,
-                    parse_mode="HTML" if response.startswith("🌙 Добро пожаловать") else None,
+                    parse_mode="HTML" if response.startswith("🌙 <b>Добро пожаловать") else None,
                 )
             return {"ok": True}
 
@@ -470,6 +470,6 @@ def register_routes(app, database, auth_context, google_uid):
             markup = verification_keyboard(code, missing) if result == "join" else None
             bot_send(
                     chat_id, response, reply_markup=markup,
-                    parse_mode="HTML" if response.startswith("🌙 Добро пожаловать") else None,
+                    parse_mode="HTML" if response.startswith("🌙 <b>Добро пожаловать") else None,
                 )
         return {"ok": True}
