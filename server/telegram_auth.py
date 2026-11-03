@@ -308,12 +308,14 @@ def register_routes(app, database, auth_context, google_uid):
                     SET membership_required=1 WHERE request_hash=? AND completed=0""",
                     (code_hash,))
                 db.commit()
-            return ("join", "🌙 Добро пожаловать в «Планер»!\n\n"
-                    "<b>Для первого входа подпишитесь на оба сообщества:</b>\n"
+            return ("join", "🌙 <b>Добро пожаловать в «Планер»!</b>\n\n"
+                    "🟢 <b>ДЛЯ ПЕРВОГО ВХОДА\n"
+                    "ПОДПИШИТЕСЬ НА ОБА СООБЩЕСТВА:</b>\n\n"
                     "📚 ФИЗМАТ\n"
                     "📈 Мир инвестиций\n\n"
-                    "После подписки нажмите «✅ Проверить подписки». "
-                    "Если останетесь подписаны, в следующие разы повторять не нужно.",
+                    "👇 <b>ПОСЛЕ ПОДПИСКИ\n"
+                    "НАЖМИТЕ «✅ ПРОВЕРИТЬ ПОДПИСКИ»</b>\n\n"
+                    "Повторно вступать не нужно, если остаётесь подписаны.",
                     [g["id"] for g in groups])
 
         # Even previously verified accounts must still be subscribed when
