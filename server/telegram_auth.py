@@ -138,7 +138,10 @@ class TelegramStatus(BaseModel):
 def register_routes(app, database, auth_context, google_uid):
     @app.get("/api/auth/config")
     def auth_config():
-        return {"telegram": telegram_enabled()}
+        return {
+            "telegram": telegram_enabled(),
+            "botUrl": "https://t.me/" + os.environ.get("TELEGRAM_BOT_USERNAME", "").lstrip("@") if telegram_enabled() else None,
+        }
 
     @app.post("/api/auth/google-session")
     def exchange_google(body: GoogleExchange):
