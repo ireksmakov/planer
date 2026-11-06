@@ -6,6 +6,8 @@ export type QuranReadingState = {
   pace: QuranReadingPace;
   startDate: string; // date of the first Ramadan day
   completedSessions: number[]; // 0..149, five prayers a day
+  pageProgress?: Record<string, number>; // number of read pages per prayer session
+  bookmark?: { session: number; page: number } | null; // optional saved position
 };
 
 export interface Task {
