@@ -40,6 +40,34 @@ class TaskTimeRangeTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             Task.model_validate(dict(self.sample(), subgoals=["Цель"] * 31))
 
+    def test_quran_reading_tracker_roundtrip_without_changing_older_tasks(self):
+        old_task = Task.model_validate(self.sample())
+        self.assertIsNone(old_task.quranReading)
+        reading = {
+            "pace": 15, "startDate": "2027-02-08",
+            "completedSessions": [9, 4, 2],
+        }
+        record = Task.model_validate(dict(self.sample(),
+            title="План чтения Корана",
+            category="__planer_quran_reading__",
+            quranReading=reading))
+        saved = record.model_dump()
+        self.assertEqual(saved["quranReading"]["pace"], 15)
+        self.assertEqual(saved["quranReading"]["completedSessions"], [2, 4, 9])
+        self.assertEqual(Task.model_validate(saved).quranReading.pace, 15)
+
+    def test_quran_tracker_rejects_invalid_days_dates_and_sessions(self):
+        normal = dict(self.sample(), category="__planer_quran_reading__")
+        cases = (
+            {"pace": 9, "startDate": "2027-02-08", "completedSessions": []},
+            {"pace": 30, "startDate": "2027-02-30", "completedSessions": []},
+            {"pace": 6, "startDate": "2027-02-08", "completedSessions": [150]},
+            {"pace": 12, "startDate": "2027-02-08", "completedSessions": [4, 4]},
+        )
+        for reading in cases:
+            with self.subTest(reading=reading), self.assertRaises(ValidationError):
+                Task.model_validate(dict(normal, quranReading=reading))
+
     def test_bad_end_time_is_rejected(self):
         for end in ("25:15", "20:99", "tomorrow", "9:00"):
             with self.subTest(end=end), self.assertRaises(ValidationError):
