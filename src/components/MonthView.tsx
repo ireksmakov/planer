@@ -69,7 +69,7 @@ export function MonthView({ date, tasks, onChangeDate, onOpenDay }: MonthViewPro
             >
               <span className="month-cell-day">{dateLabel(day, 'd')}{isCurrentDay(day) && <span className="today-dot" />}</span>
               <span className="month-cell-tasks">{dayStats.total ? `${dayStats.total} ${taskWord(dayStats.total)}` : '—'}</span>
-              {dayStats.total > 0 && <span className="month-cell-planned-date">{dateLabel(day, 'd MMMM')}</span>}
+              {dayStats.total > 0 && <span className="month-cell-planned-date">{dateLabel(day, 'd MMM')}</span>}
               <span className="month-cell-track"><span style={{ width: `${fill}%` }} /></span>
             </button>
           );
