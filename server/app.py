@@ -32,6 +32,7 @@ class Task(BaseModel):
     completed: bool
     createdAt: int
     repeatReminder: bool = False
+    subgoals: list[str] = Field(default_factory=list, max_length=30)
 
 class ImportRequest(BaseModel):
     tasks: list[Task] = Field(max_length=3000)
