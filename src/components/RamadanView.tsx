@@ -1,4 +1,5 @@
 import { RamadanLibrary } from './RamadanLibrary';
+import { QuranReadingPlan } from './QuranReadingPlan';
 import { RamadanTaskCard } from './RamadanTaskCard';
 import { useMemo, useState } from 'react';
 import type { Task, TaskActions } from '../types';
@@ -15,7 +16,7 @@ export function RamadanView({ tasks, addTask, updateTask, toggleTask, deleteTask
   const [start, setStart] = useState(() => localStorage.getItem(START_KEY) || '');
   const [selected, setSelected] = useState(0);
   const [customTitle, setCustomTitle] = useState('');
-  const [section, setSection] = useState<'plan'|'library'>('plan');
+  const [section, setSection] = useState<'plan'|'quran'|'library'>('plan');
   const base = useMemo(() => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(start)) return null;
     const date = parseISO(start);
@@ -71,8 +72,22 @@ export function RamadanView({ tasks, addTask, updateTask, toggleTask, deleteTask
       <p>Планируйте поклонение, добрые дела и личные цели — день за днём.</p>
       <span lang="ar" dir="rtl" className="ramadan-arabic">رَمَضَانُ مُبَارَكٌ</span>
     </div>
-    <nav className="ramadan-subtabs" aria-label="Разделы Рамадана"><button type="button" className={section === "plan" ? "active" : ""} onClick={() => setSection("plan")}>☾ План на Рамадан</button><button type="button" className={section === "library" ? "active" : ""} onClick={() => setSection("library")}>▤ Библиотека и дуа</button></nav>
-    {section === "library" ? <RamadanLibrary /> : <>
+    <nav className="ramadan-subtabs" aria-label="Разделы Рамадана">
+      <button type="button" className={section === 'plan' ? 'active' : ''} onClick={() => setSection('plan')} aria-current={section === 'plan' ? 'page' : undefined}>☾ План</button>
+      <button type="button" className={section === 'quran' ? 'active' : ''} onClick={() => setSection('quran')} aria-current={section === 'quran' ? 'page' : undefined}>📖 Чтение Корана</button>
+      <button type="button" className={section === 'library' ? 'active' : ''} onClick={() => setSection('library')} aria-current={section === 'library' ? 'page' : undefined}>▤ Библиотека</button>
+    </nav>
+    {section === 'library' ? <RamadanLibrary /> : section === 'quran' ? (
+      <QuranReadingPlan
+        tasks={tasks}
+        addTask={addTask}
+        updateTask={updateTask}
+        dates={dates}
+        selected={selected}
+        onSelectDay={setSelected}
+        onOpenSetup={() => setSection('plan')}
+      />
+    ) : <>
     <div className="ramadan-setup">
       <label htmlFor="ramadan-start">Первый день Рамадана (по местному объявлению)</label>
       <input id="ramadan-start" type="date" value={start} onChange={e => saveStart(e.target.value)} />
