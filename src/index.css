@@ -1565,3 +1565,55 @@ body { background-color: var(--paper); }
 @media (prefers-reduced-motion: reduce) {
   .day-bottom-add-button { transition: none; }
 }
+
+
+/* Ramadan: clear only the selected day's checklist. Deliberately less
+   prominent than "Add", with an explicit confirmation before removal. */
+.ramadan-clear-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 15px;
+  margin: 8px 0 24px;
+  padding: 16px 0;
+  border-bottom: 1px solid #b8d6c0;
+}
+.ramadan-clear-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 11px 16px;
+  border: 1px solid #b48b81;
+  border-radius: 12px;
+  background: #fff9f5;
+  color: #963e39;
+  font-family: inherit;
+  font-weight: 750;
+  font-size: 13px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+.ramadan-clear-button:hover:not(:disabled) {
+  background: #f9e8e4;
+  border-color: #9b5149;
+}
+.ramadan-clear-button:focus-visible {
+  outline: 2px solid #a77842;
+  outline-offset: 3px;
+}
+.ramadan-clear-button:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+.ramadan-clear-caption {
+  color: #617765;
+  font-size: 11px;
+  font-weight: 650;
+}
+@media (max-width: 540px) {
+  .ramadan-clear-actions { align-items: stretch; }
+  .ramadan-clear-button { width: 100%; }
+  .ramadan-clear-caption { width: 100%; text-align: center; }
+}
