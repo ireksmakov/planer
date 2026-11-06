@@ -4,6 +4,7 @@ import { readLocalTasks } from '../hooks/useTasks';
 import { unsubscribeDeviceNotifications } from './PushNotifications';
 import { TelegramConnect } from './TelegramConnect';
 import { PlannerSignedInTools } from './PlannerSignedInTools';
+import { QURAN_TRACKER_CATEGORY } from '../utils/quranReading';
 
 type Snapshot = { version: number; tasks: Task[] };
 type Identity = { uid: string; provider: 'google' | 'telegram'; telegramLinked: boolean; telegramNotifications: boolean };
@@ -259,7 +260,7 @@ export function CloudSync({ tasks, replaceAllTasks }: {
       <PlannerSignedInTools
         token={token}
         identity={identity}
-        taskCount={snapshot?.tasks.length ?? 0}
+        taskCount={snapshot?.tasks.filter(task => task.category !== QURAN_TRACKER_CATEGORY).length ?? 0}
         onLogout={() => { void signOut(); }}
         onLinked={refreshIdentity}
       />
