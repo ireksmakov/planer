@@ -12,7 +12,7 @@ interface DayViewProps extends TaskActions {
 }
 
 export function DayView({ date, tasks, onChangeDate, addTask, updateTask, rescheduleTask, deleteTask, toggleTask }: DayViewProps) {
-  const [editing, setEditing] = useState<string | 'new' | null>(null);
+  const [editing, setEditing] = useState<string | 'new' | 'new-bottom' | null>(null);
   const [rescheduleNotice, setRescheduleNotice] = useState('');
   const [overdueExpanded, setOverdueExpanded] = useState(false);
   const [todayExpanded, setTodayExpanded] = useState(false);
@@ -39,6 +39,33 @@ export function DayView({ date, tasks, onChangeDate, addTask, updateTask, resche
     if (!task) return;
     rescheduleTask(id, targetDate);
     setRescheduleNotice(`«${task.title}» перенесена на ${dateLabel(fromDateKey(targetDate), 'd MMMM yyyy')}`);
+  }
+
+  // The bottom action opens the same creation form directly under the task list,
+  // so iPhone users don't need to scroll back to the top of a busy day.
+  function renderBottomAdd() {
+    return (
+      <div className="day-bottom-add">
+        {editing === 'new-bottom' ? (
+          <TaskForm
+            key={`new-bottom-${key}`}
+            date={key}
+            onSubmit={(input) => { addTask(input); setEditing(null); }}
+            onCancel={() => setEditing(null)}
+          />
+        ) : (
+          <button
+            type="button"
+            className="day-bottom-add-button"
+            aria-label={`Добавить новую задачу на ${dateLabel(date, 'd MMMM yyyy')}`}
+            aria-expanded={false}
+            onClick={() => setEditing('new-bottom')}
+          >
+            <span aria-hidden="true">＋</span> Новая задача
+          </button>
+        )}
+      </div>
+    );
   }
 
   function renderTask(task: Task, index: number, showOriginalDate = false) {
@@ -159,15 +186,13 @@ export function DayView({ date, tasks, onChangeDate, addTask, updateTask, resche
                 <div className="today-goals-empty" role="status">
                   <span className="eyebrow">НА СЕГОДНЯ НЕТ ЗАДАЧ</span>
                   <p>Новый день — новые возможности.</p>
-                  <button type="button" className="today-goals-add" onClick={() => setEditing('new')}>
-                    + Добавить задачу на сегодня
-                  </button>
                 </div>
               ) : (
                 <div className="task-list today-goals-list">
                   {dayTasks.map((task, index) => renderTask(task, index))}
                 </div>
               )}
+              {renderBottomAdd()}
             </div>
           </div>
         </section>
@@ -188,6 +213,7 @@ export function DayView({ date, tasks, onChangeDate, addTask, updateTask, resche
               {dayTasks.map((task, index) => renderTask(task, index))}
             </div>
           )}
+          {renderBottomAdd()}
         </>
       )}
       <div className="page-footer-line"><span>ВРЕМЯ — ДОВЕРЕННОЕ БЛАГО</span><span>© ПЛАНЕР</span></div>
