@@ -12,7 +12,7 @@ interface DayViewProps extends TaskActions {
 }
 
 export function DayView({ date, tasks, onChangeDate, addTask, updateTask, rescheduleTask, deleteTask, toggleTask }: DayViewProps) {
-  const [editing, setEditing] = useState<string | 'new' | 'new-bottom' | null>(null);
+  const [editing, setEditing] = useState<string | 'new-bottom' | null>(null);
   const [rescheduleNotice, setRescheduleNotice] = useState('');
   const [overdueExpanded, setOverdueExpanded] = useState(false);
   const [todayExpanded, setTodayExpanded] = useState(false);
@@ -99,7 +99,6 @@ export function DayView({ date, tasks, onChangeDate, addTask, updateTask, resche
           <button type="button" className="navigation-link" onClick={() => onChangeDate(today())}>Сегодня</button>
           <button type="button" className="navigation-link" onClick={() => onChangeDate(shiftDay(date, 1))}>след. →</button>
         </div>
-        <button type="button" className="outline-button" onClick={() => setEditing(editing === 'new' ? null : 'new')}>+ Новая задача</button>
       </div>
 
       <div className="planner-selected-date" aria-label={`Выбранный день: ${dateLabel(date, 'EEEE, d MMMM yyyy')}`}>
@@ -112,15 +111,6 @@ export function DayView({ date, tasks, onChangeDate, addTask, updateTask, resche
       </div>
 
       <ProgressLine completed={stats.completed} total={stats.total} label="ПРОГРЕСС ДНЯ" />
-
-      {editing === 'new' && (
-        <TaskForm
-          key={`new-${key}`}
-          date={key}
-          onSubmit={(input) => { addTask(input); setEditing(null); }}
-          onCancel={() => setEditing(null)}
-        />
-      )}
 
       {rescheduleNotice && <p className="reschedule-notice" role="status">{rescheduleNotice}</p>}
 
@@ -192,8 +182,8 @@ export function DayView({ date, tasks, onChangeDate, addTask, updateTask, resche
                   {dayTasks.map((task, index) => renderTask(task, index))}
                 </div>
               )}
-              {renderBottomAdd()}
             </div>
+            {renderBottomAdd()}
           </div>
         </section>
       ) : (
