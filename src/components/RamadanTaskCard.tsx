@@ -130,7 +130,6 @@ export function RamadanTaskCard({ task, onToggle, onUpdate, onDelete }: Props) {
               onChange={event => { setTitle(event.target.value); setError(''); }}
               maxLength={180}
               required
-              autoFocus
             />
           </label>
           <div className="ramadan-detail-time">
