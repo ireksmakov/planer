@@ -57,9 +57,10 @@ export async function unsubscribeDeviceNotifications(token: string): Promise<voi
   }
 }
 
-export function PushNotifications({ token }: { token: string }) {
+export function PushNotifications({ token, compact = false }: { token: string; compact?: boolean }) {
   const [state, setState] = useState<PushState>('idle');
   const [error, setError] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
   const available = supported();
   const iosShortcut = available && isIOSBrowserShortcut();
 
@@ -116,6 +117,44 @@ export function PushNotifications({ token }: { token: string }) {
       setState('idle');
       setError('Не удалось полностью отключить уведомления. Проверьте настройки телефона.');
     }
+  }
+
+  if (compact) {
+    return <div className="planner-bell-menu">
+      <button type="button" className="planner-utility-button"
+        aria-expanded={menuOpen} aria-controls="planner-push-options"
+        aria-label={state === 'enabled' ? 'Уведомления на устройстве включены. Настроить' : 'Настроить уведомления'}
+        onClick={() => setMenuOpen(value => !value)}>
+        <span className="planner-bell-icon" aria-hidden="true">🔔</span>
+        <span>Уведомления</span>
+        {state === 'enabled' && <span className="planner-bell-enabled" aria-hidden="true" />}
+      </button>
+      {menuOpen && (
+        <div className="planner-utility-panel planner-bell-panel" id="planner-push-options">
+          <strong>Напоминания на устройстве</strong>
+          {!available ? (
+            <p className="push-note">Этот браузер не поддерживает push-уведомления.</p>
+          ) : iosShortcut ? (
+            <p className="push-note">Для уведомлений iPhone откройте «Планер» с экрана «Домой».</p>
+          ) : state === 'enabled' ? (
+            <>
+              <p className="planner-push-enabled">● Уведомления включены</p>
+              <button className="planner-utility-action" type="button"
+                disabled={state === 'working'} onClick={() => { void disable(); }}>
+                Отключить на устройстве
+              </button>
+            </>
+          ) : (
+            <button className="planner-utility-action" type="button"
+              disabled={state === 'working'} onClick={() => { void enable(); }}>
+              {state === 'working' ? 'Подключаем…' : 'Включить уведомления'}
+            </button>
+          )}
+          <p className="planner-utility-note">Здесь управляются уведомления iPhone. Напоминания Telegram настраиваются отдельно в боте.</p>
+          {error && <p className="push-note" role="status">{error}</p>}
+        </div>
+      )}
+    </div>;
   }
 
   if (!available) return <span className="push-note">Напоминания не поддерживаются этим браузером.</span>;
