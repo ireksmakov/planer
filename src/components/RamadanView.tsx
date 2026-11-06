@@ -1,7 +1,7 @@
 import { RamadanLibrary } from './RamadanLibrary';
-import { PriorityIndicator } from './PriorityIndicator';
+import { RamadanTaskCard } from './RamadanTaskCard';
 import { useMemo, useState } from 'react';
-import type { Task, TaskActions } from '../types';
+import type { TaskActions } from '../types';
 import { format, addDays, parseISO, isValid } from 'date-fns';
 import { ru } from 'date-fns/locale';
 
@@ -15,8 +15,6 @@ export function RamadanView({ tasks, addTask, updateTask, toggleTask, deleteTask
   const [start, setStart] = useState(() => localStorage.getItem(START_KEY) || '');
   const [selected, setSelected] = useState(0);
   const [customTitle, setCustomTitle] = useState('');
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editTitle, setEditTitle] = useState('');
   const [section, setSection] = useState<'plan'|'library'>('plan');
   const base = useMemo(() => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(start)) return null;
@@ -49,7 +47,7 @@ export function RamadanView({ tasks, addTask, updateTask, toggleTask, deleteTask
     const existing = ramadanTasks.filter(t => t.date === next);
     for (const task of dayTasks) {
       if (existing.some(t => t.title === task.title && t.time === task.time)) continue;
-      addTask({ title: task.title, date: next, time: task.time, endTime: task.endTime, priority: task.priority, category: CATEGORY, repeatReminder: task.repeatReminder });
+      addTask({ title: task.title, date: next, time: task.time, endTime: task.endTime, priority: task.priority, category: CATEGORY, repeatReminder: task.repeatReminder, subgoals: task.subgoals });
     }
     setSelected(selected + 1);
   };
@@ -64,12 +62,6 @@ export function RamadanView({ tasks, addTask, updateTask, toggleTask, deleteTask
     );
     if (!agreed) return;
     deleteTasks(dayTasks.map(task => task.id));
-    setEditingId(null);
-  };
-  const saveEdit = (task: Task) => {
-    if (!editTitle.trim()) return;
-    updateTask(task.id, { title: editTitle.trim(), date: task.date, time: task.time, endTime: task.endTime, priority: task.priority, category: task.category, repeatReminder: task.repeatReminder });
-    setEditingId(null);
   };
 
   return <section className="ramadan-page page-section">
@@ -111,19 +103,15 @@ export function RamadanView({ tasks, addTask, updateTask, toggleTask, deleteTask
         </div>
         <div className="ramadan-checklist">
           {dayTasks.length === 0 && <p className="ramadan-hint">Пока задач нет. Добавьте готовые ежедневные дела или свою цель.</p>}
-          {dayTasks.map(t => <div className="ramadan-task" key={t.id}>
-            {editingId === t.id ? <form className="ramadan-edit" onSubmit={e => {e.preventDefault(); saveEdit(t);}}>
-              <input aria-label="Название задачи" value={editTitle} maxLength={500} autoFocus onChange={e => setEditTitle(e.target.value)} />
-              <button type="submit" disabled={!editTitle.trim()}>Сохранить</button>
-              <button type="button" onClick={() => setEditingId(null)}>Отмена</button>
-            </form> : <>
-              <label><input type="checkbox" checked={t.completed} onChange={() => toggleTask(t.id)} /><span className={t.completed ? 'done' : ''}>{t.title}</span><PriorityIndicator priority={t.priority} compact /></label>
-              <div className="ramadan-task-buttons">
-                <button type="button" onClick={() => { setEditingId(t.id); setEditTitle(t.title); }}>Изменить</button>
-                <button type="button" onClick={() => deleteTask(t.id)} aria-label={`Удалить: ${t.title}`}>Удалить</button>
-              </div>
-            </>}
-          </div>)}
+          {dayTasks.map(task => (
+            <RamadanTaskCard
+              key={task.id}
+              task={task}
+              onToggle={toggleTask}
+              onUpdate={updateTask}
+              onDelete={deleteTask}
+            />
+          ))}
         </div>
         <div className="ramadan-clear-actions">
           <button
