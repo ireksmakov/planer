@@ -1909,7 +1909,7 @@ body { background-color: var(--paper); }
   width:100%; min-height: 44px; padding: 8px 12px;
   border: 1px solid #a6c2af; border-radius: 10px;
   background: #fffdf8; color: #214b37;
-  font: 800 14px inherit;
+  font-family: inherit; font-size: 14px; font-weight: 800;
 }
 .quran-day-date { margin: 6px 0 18px; color: #6d806f; font-size: 12px; }
 .quran-reading-checklist { border: 1px solid #bad2bd; border-radius: 22px; overflow: hidden; background: #f4f9f1; }
@@ -1955,4 +1955,17 @@ body { background-color: var(--paper); }
 }
 @media(prefers-reduced-motion:reduce) {
   .quran-pace-card, .quran-progress-track>span { transition:none; }
+}
+
+/* Utility for screen reader labels on the Quran day selector. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
