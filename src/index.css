@@ -1514,3 +1514,54 @@ body { background-color: var(--paper); }
   .week-task-date { font-size: 10px; }
   .month-cell-planned-date { font-size: 7px; letter-spacing: -.03em; }
 }
+
+
+/* A second quick-add action stays directly after the last task on iPhone.
+   Its form appears in place, never at the top of the day. */
+.day-bottom-add {
+  width: 100%;
+  min-width: 0;
+  padding: 17px 0 6px;
+  margin-top: 10px;
+  border-top: 1px solid var(--hairline);
+}
+.day-bottom-add-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 50px;
+  padding: 12px 16px;
+  background: #fffdf8;
+  border: 1px solid #397057;
+  border-radius: 10px;
+  color: #194935;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background-color 150ms ease-out, border-color 150ms ease-out;
+}
+.day-bottom-add-button:hover { background: #e8f3e9; border-color: #285c42; }
+.day-bottom-add-button:focus-visible { outline: 2px solid #aa8548; outline-offset: 3px; }
+.day-bottom-add-button span { font-size: 21px; line-height: .8; }
+.day-bottom-add .task-form { margin-top: 0; margin-bottom: 4px; }
+.today-goals-content .day-bottom-add {
+  border-top-color: #afd1b8;
+  padding-top: 20px;
+  padding-bottom: 11px;
+}
+.today-goals-content .day-bottom-add-button {
+  background: #f5fbf4;
+  border-color: #80b192;
+  box-shadow: 0 2px 0 rgba(35, 83, 56, .06);
+}
+.today-goals-content .day-bottom-add-button:hover { background: #e2f1e4; }
+@media (max-width: 600px) {
+  .day-bottom-add-button { min-height: 52px; font-size: 15px; }
+  .today-goals-content .day-bottom-add { margin-top: 5px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .day-bottom-add-button { transition: none; }
+}
