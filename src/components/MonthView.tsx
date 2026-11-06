@@ -63,12 +63,13 @@ export function MonthView({ date, tasks, onChangeDate, onOpenDay }: MonthViewPro
             <button
               type="button"
               key={key}
-              className={`month-cell ${isMonthEqual(day, date) ? '' : 'outside-month'} ${isCurrentDay(day) ? 'is-today' : ''}`}
+              className={`month-cell ${isMonthEqual(day, date) ? '' : 'outside-month'} ${isCurrentDay(day) ? 'is-today' : ''} ${dayStats.total ? 'has-planned-goals' : ''}`}
               onClick={() => onOpenDay(day)}
               aria-label={`${dateLabel(day, 'd MMMM')}: ${dayStats.total} задач, ${dayStats.completed} выполнено. Открыть день`}
             >
               <span className="month-cell-day">{dateLabel(day, 'd')}{isCurrentDay(day) && <span className="today-dot" />}</span>
               <span className="month-cell-tasks">{dayStats.total ? `${dayStats.total} ${taskWord(dayStats.total)}` : '—'}</span>
+              {dayStats.total > 0 && <span className="month-cell-planned-date">{dateLabel(day, 'd MMMM')}</span>}
               <span className="month-cell-track"><span style={{ width: `${fill}%` }} /></span>
             </button>
           );
