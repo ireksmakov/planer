@@ -31,14 +31,18 @@ export function quranPageRange(pace: QuranReadingPace, day: number, prayer: numb
   return { start, end, pages: end - start + 1, lastReadingOfCycle };
 }
 
+export function pagesReadInSession(plan: QuranReadingState, index: number): number {
+  if (!Number.isInteger(index) || index < 0 || index >= RAMADAN_DAYS * READINGS_PER_DAY) return 0;
+  const range = quranPageRange(plan.pace, Math.floor(index / READINGS_PER_DAY), index % READINGS_PER_DAY);
+  if (plan.completedSessions.includes(index)) return range.pages;
+  return Math.max(0, Math.min(range.pages, plan.pageProgress?.[String(index)] ?? 0));
+}
+
 export function countCyclePages(plan: QuranReadingState, cycleIndex: number): number {
-  const read = new Set(plan.completedSessions);
   let pages = 0;
   for (let day = cycleIndex * plan.pace; day < Math.min(RAMADAN_DAYS, (cycleIndex + 1) * plan.pace); day++) {
     for (let prayer = 0; prayer < READINGS_PER_DAY; prayer++) {
-      if (read.has(day * READINGS_PER_DAY + prayer)) {
-        pages += quranPageRange(plan.pace, day, prayer).pages;
-      }
+      pages += pagesReadInSession(plan, day * READINGS_PER_DAY + prayer);
     }
   }
   return pages;
