@@ -1813,3 +1813,146 @@ body { background-color: var(--paper); }
   .ramadan-task-details { margin-left: 0; padding: 14px; }
   .ramadan-detail-time { gap: 8px; }
 }
+
+
+/* Quran reading planner — independent of normal Ramadan task checklists. */
+.ramadan-subtabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.ramadan-subtabs button { min-width: 0; width: 100%; font-weight: 750; }
+.quran-reading-section { max-width: 100%; padding: 6px 0 20px; color: #1c4634; }
+.quran-reading-hero {
+  position: relative;
+  margin: 5px 0 29px;
+  padding: clamp(25px, 5vw, 43px);
+  overflow: hidden;
+  border: 1px solid #b7995d;
+  border-radius: 24px;
+  background: radial-gradient(ellipse at 90% 10%, #346b4d, transparent 50%), linear-gradient(135deg, #14382d, #1c503c);
+  color: #f7f3e9;
+}
+.quran-reading-hero::after {
+  content: '۞';
+  position: absolute;
+  top: 5px;
+  right: 18px;
+  font: 85px 'Amiri', Georgia, serif;
+  color: rgba(216, 181, 109, .17);
+  pointer-events: none;
+}
+.quran-reading-eyebrow {
+  display: block;
+  color: #a07d45;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: .15em;
+  line-height: 1.4;
+}
+.quran-reading-hero .quran-reading-eyebrow { color: #daba80; }
+.quran-reading-hero h2 {
+  position: relative;
+  margin: 15px 0 12px;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-weight: 550;
+  font-size: clamp(37px, 6vw, 59px);
+  line-height: 1.04;
+  max-width: 590px;
+}
+.quran-reading-hero p { position:relative; margin: 0; max-width: 590px; font-size: 14px; line-height: 1.8; color: #e8efdf; }
+.quran-reading-arabic { position:relative; margin-top: 16px; font: 28px 'Amiri', serif; color: #e3c58a; }
+.quran-pace-heading { display:flex; align-items:end; justify-content:space-between; gap: 14px; margin: 22px 0 13px; }
+.quran-pace-heading h3 { margin: 6px 0 0; font: 500 clamp(26px, 4vw, 36px)/1.12 'Cormorant Garamond', Georgia, serif; color: #1c4533; }
+.quran-reading-helper { color: #718171; font-size: 11px; text-align: right; }
+.quran-pace-grid { display:grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+.quran-pace-card {
+  display:flex; flex-direction:column; align-items:center; gap: 6px;
+  position:relative; min-width: 0; min-height: 147px; padding: 17px 7px 12px;
+  color: #28513c; background: #f3f9ef; border: 1px solid #c4d5bd; border-radius: 17px;
+  font: inherit; cursor: pointer; text-align:center;
+  transition: border-color .15s ease, background .15s ease, box-shadow .15s ease;
+}
+.quran-pace-card:hover, .quran-pace-card--selected {
+  background: #e9f2e5; border-color: #b28c4a;
+  box-shadow: 0 0 0 2px rgba(179, 147, 75, .13);
+}
+.quran-pace-emoji { font-size: 22px; line-height: 1.2; }
+.quran-pace-title { color: #214b38; font-size: 14px; font-weight: 850; }
+.quran-pace-amount { color: #926c35; font-size: 14px; font-weight: 850; }
+.quran-pace-description { color: #688373; font-size: 9px; line-height: 1.35; }
+.quran-pace-chosen { padding: 3px 7px; background: #dfecd9; border-radius: 100px; color: #2b6b45; font-size: 9px; font-weight: 800; }
+.quran-reading-notice { color: #9c503e; font-size: 12px; }
+.quran-start-note {
+  margin: 25px 0; padding: 19px;
+  background: #fcf7e9; border: 1px solid #dac795; border-radius: 15px;
+  color: #325642; font-size: 14px; line-height: 1.65;
+}
+.quran-start-note strong { font-size: 15px; }
+.quran-start-note p { margin: 8px 0 14px; }
+.quran-start-note button { border: 1px solid #396b4f; border-radius: 9px; padding: 11px 14px; background: #f3f9ee; color: #22543a; font-weight: 800; }
+.quran-progress-card {
+  margin: 28px 0 32px; padding: 26px;
+  background: #f0f7eb; border: 1px solid #b9d2bc; border-radius: 22px;
+}
+.quran-progress-stats { display:grid; grid-template-columns: 1.6fr 1fr; gap: 15px; margin: 18px 0; }
+.quran-progress-stats > div { display:flex; flex-direction:column; gap: 5px; min-width:0; }
+.quran-progress-stats strong { color: #1d5238; font: 600 clamp(29px, 5vw, 44px)/1 'Cormorant Garamond', Georgia, serif; }
+.quran-progress-stats small { font: 750 12px 'Manrope', sans-serif; color: #50755e; }
+.quran-progress-stats span { color: #587567; font-size: 11px; line-height: 1.5; }
+.quran-progress-track { width:100%; height: 11px; border-radius: 999px; overflow:hidden; background: #d3e4d4; }
+.quran-progress-track > span { display:block; height:100%; background: linear-gradient(90deg, #387550, #b89a56); border-radius:inherit; transition:width .25s ease; }
+.quran-progress-foot { display:flex; justify-content:space-between; gap:10px; margin-top: 9px; color: #557263; font-size: 11px; }
+.quran-progress-foot strong { color: #285c41; }
+.quran-reading-day { margin: 5px 0 35px; }
+.quran-day-navigation { display:grid; grid-template-columns:44px minmax(0,1fr) 44px; gap:9px; align-items:center; max-width: 470px; margin: 14px 0 5px; }
+.quran-day-navigation button { min-height: 44px; font-size: 25px; border-radius: 10px; border: 1px solid #a6c2af; background: #f0f7ec; color: #2b6344; }
+.quran-day-navigation button:disabled { opacity:.35; }
+.quran-day-navigation label { min-width: 0; }
+.quran-day-navigation select {
+  width:100%; min-height: 44px; padding: 8px 12px;
+  border: 1px solid #a6c2af; border-radius: 10px;
+  background: #fffdf8; color: #214b37;
+  font: 800 14px inherit;
+}
+.quran-day-date { margin: 6px 0 18px; color: #6d806f; font-size: 12px; }
+.quran-reading-checklist { border: 1px solid #bad2bd; border-radius: 22px; overflow: hidden; background: #f4f9f1; }
+.quran-reading-row {
+  display:grid; grid-template-columns: 26px minmax(0,1fr) auto;
+  align-items:center; gap: 13px; padding: 17px 21px;
+  border-bottom: 1px solid #c8dac9; cursor: pointer;
+}
+.quran-reading-row:last-child { border-bottom: 0; }
+.quran-reading-row input { width: 22px; height: 22px; margin:0; accent-color:#2c6845; cursor:pointer; }
+.quran-reading-row-body { display:flex; flex-direction:column; gap: 4px; min-width:0; }
+.quran-reading-row-body strong { font-size: 15px; color: #244d3a; }
+.quran-reading-row-body > span { color: #557060; font-size: 12px; }
+.quran-reading-row-body small { color: #9a7539; font-size: 10px; line-height: 1.4; }
+.quran-reading-row-pages { white-space:nowrap; text-align:right; font-size: 12px; font-weight:850; color:#9d793d; }
+.quran-reading-row--done { background: #e2f0df; }
+.quran-reading-row--done .quran-reading-row-body strong { color:#638572; }
+.quran-reading-row--done .quran-reading-row-pages { color:#2f754f; }
+.quran-day-success { background:#e5f3e4; color:#245e3d; border-radius:12px; padding:12px 15px; font-size:13px; font-weight:700; }
+.quran-reading-footer { border-top:1px solid #dbcbaa; padding: 24px 4px 12px; color:#617467; line-height:1.7; font-size:12px; }
+.quran-reading-footer strong { color:#365a44; font-size:14px; }
+.quran-reading-footer p { margin: 9px 0 15px; }
+.quran-reading-footer a { display:inline-flex; padding:11px 16px; border:1px solid #a7c4ae; border-radius:10px; background:#f0f7e9; color:#215a3d; font-weight:800; text-decoration:none; }
+.quran-reading-encouragement { color:#416349; font-style:italic; }
+@media(max-width:750px){
+  .quran-pace-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .quran-pace-card { min-height: 130px; padding:13px 6px; }
+}
+@media(max-width:540px){
+  .ramadan-subtabs { grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; }
+  .ramadan-subtabs button { padding: 12px 5px; font-size:11px; white-space:normal; line-height:1.3; }
+  .quran-reading-hero { padding: 28px 22px; border-radius:19px; }
+  .quran-reading-hero h2 { font-size: 39px; }
+  .quran-reading-hero p { font-size:13px; }
+  .quran-pace-grid { gap:8px; }
+  .quran-pace-title { font-size:13px; }
+  .quran-pace-amount { font-size:13px; }
+  .quran-reading-helper { font-size:10px; }
+  .quran-progress-card { padding:19px; }
+  .quran-reading-row { grid-template-columns:22px minmax(0,1fr) auto; padding:15px 12px; gap:9px; }
+  .quran-reading-row-body strong { font-size:14px; }
+  .quran-reading-row-pages { font-size:11px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .quran-pace-card, .quran-progress-track>span { transition:none; }
+}
