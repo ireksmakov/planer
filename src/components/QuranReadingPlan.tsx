@@ -66,7 +66,7 @@ export function QuranReadingPlan({
   };
 
   const toggleSession = (index: number) => {
-    if (!plan || mismatchedStart) return;
+    if (!plan || !currentStartDate || mismatchedStart) return;
     const checked = new Set(plan.completedSessions);
     if (checked.has(index)) checked.delete(index);
     else checked.add(index);
@@ -137,7 +137,7 @@ export function QuranReadingPlan({
         </div>
       )}
 
-      {plan && !mismatchedStart && (
+      {plan && Boolean(currentStartDate) && !mismatchedStart && (
         <>
           <div className="quran-progress-card">
             <span className="quran-reading-eyebrow">02 · ВАШ ПРОГРЕСС</span>
