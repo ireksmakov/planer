@@ -7,6 +7,7 @@ import { DayView } from './components/DayView';
 import { WeekView } from './components/WeekView';
 import { MonthView } from './components/MonthView';
 import { RamadanView } from './components/RamadanView';
+import { QURAN_TRACKER_CATEGORY } from './utils/quranReading';
 
 // During GitHub Pages builds this value is set to the commit SHA.
 const APP_VERSION = import.meta.env.VITE_APP_VERSION as string | undefined;
@@ -16,6 +17,9 @@ export default function App() {
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const taskStore = useTasks();
+  // A single cloud-synced Quran tracker is an internal record, never a goal
+  // in the normal Day / Week / Month task calendar.
+  const visibleTasks = taskStore.tasks.filter(task => task.category !== QURAN_TRACKER_CATEGORY);
 
   useEffect(() => {
     if (!APP_VERSION) return;
@@ -87,14 +91,14 @@ export default function App() {
       )}
       <main>
         {view === 'day' && (
-          <DayView date={selectedDate} onChangeDate={setSelectedDate} {...taskStore} />
+          <DayView date={selectedDate} onChangeDate={setSelectedDate} {...taskStore} tasks={visibleTasks} />
         )}
         {view === 'week' && (
-          <WeekView date={selectedDate} onChangeDate={setSelectedDate} onOpenDay={openDay} {...taskStore} />
+          <WeekView date={selectedDate} onChangeDate={setSelectedDate} onOpenDay={openDay} {...taskStore} tasks={visibleTasks} />
         )}
         {view === 'ramadan' && <RamadanView {...taskStore} />}
         {view === 'month' && (
-          <MonthView date={selectedDate} onChangeDate={setSelectedDate} onOpenDay={openDay} tasks={taskStore.tasks} />
+          <MonthView date={selectedDate} onChangeDate={setSelectedDate} onOpenDay={openDay} tasks={visibleTasks} />
         )}
       </main>
     </div>
