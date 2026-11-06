@@ -1,7 +1,7 @@
 import { RamadanLibrary } from './RamadanLibrary';
 import { RamadanTaskCard } from './RamadanTaskCard';
 import { useMemo, useState } from 'react';
-import type { TaskActions } from '../types';
+import type { Task, TaskActions } from '../types';
 import { format, addDays, parseISO, isValid } from 'date-fns';
 import { ru } from 'date-fns/locale';
 
