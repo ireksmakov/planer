@@ -21,5 +21,6 @@ export interface TaskActions {
   updateTask: (id: string, input: TaskInput) => void;
   rescheduleTask: (id: string, targetDate: string) => void;
   deleteTask: (id: string) => void;
+  deleteTasks: (ids: string[]) => void;
   toggleTask: (id: string) => void;
 }
