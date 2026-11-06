@@ -42,13 +42,12 @@ export function TaskItem({
           </span>
         )}
         <div className="task-title">{task.title}</div>
+        <span className={`task-date-stamp ${isOverdue ? 'task-date-stamp--overdue' : ''}`}>
+          <span className="task-date-stamp-icon" aria-hidden="true">▣</span>
+          {showOriginalDate ? 'Было назначено: ' : ''}
+          {dateLabel(fromDateKey(task.date), 'EEEE, d MMMM yyyy').replace(/^./, char => char.toLocaleUpperCase('ru-RU'))}
+        </span>
         <div className="task-meta">
-          {showOriginalDate && (
-            <>
-              <span className="task-overdue-date">С {dateLabel(fromDateKey(task.date), 'd MMMM yyyy')}</span>
-              <span className="meta-divider" aria-hidden="true">/</span>
-            </>
-          )}
           <span>{task.category}</span>
           <span className="meta-divider" aria-hidden="true">/</span>
           <PriorityIndicator priority={task.priority} />
