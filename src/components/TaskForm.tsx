@@ -65,6 +65,7 @@ export function TaskForm({ date, initial, compact = false, onSubmit, onCancel }:
       priority,
       category: category.trim() || 'Без категории',
       repeatReminder: Boolean(time && repeatReminder),
+      subgoals: initial?.subgoals,
     });
   }
 
