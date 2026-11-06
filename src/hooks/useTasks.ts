@@ -57,7 +57,13 @@ export function useTasks(): { tasks: Task[], replaceAllTasks: (tasks: Task[]) =>
       t.id === id && !t.completed && t.date < toDateKey(today()) ? { ...t, date } : t));
   };
   const deleteTask = (id: string) => setTasks(old => old.filter(t => t.id !== id));
+  const deleteTasks = (ids: string[]) => {
+    if (ids.length === 0) return;
+    const toDelete = new Set(ids);
+    // One React state update: the whole selected day's checklist disappears at once.
+    setTasks(old => old.filter(task => !toDelete.has(task.id)));
+  };
   const toggleTask = (id: string) =>
     setTasks(old => old.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
-  return { tasks, replaceAllTasks, addTask, updateTask, rescheduleTask, deleteTask, toggleTask };
+  return { tasks, replaceAllTasks, addTask, updateTask, rescheduleTask, deleteTask, deleteTasks, toggleTask };
 }
