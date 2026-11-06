@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Task } from '../types';
 import { readLocalTasks } from '../hooks/useTasks';
-import { PushNotifications, unsubscribeDeviceNotifications } from './PushNotifications';
+import { unsubscribeDeviceNotifications } from './PushNotifications';
 import { TelegramConnect } from './TelegramConnect';
+import { PlannerSignedInTools } from './PlannerSignedInTools';
 
 type Snapshot = { version: number; tasks: Task[] };
 type Identity = { uid: string; provider: 'google' | 'telegram'; telegramLinked: boolean; telegramNotifications: boolean };
@@ -230,23 +231,36 @@ export function CloudSync({ tasks, replaceAllTasks }: {
     try { await request('/api/auth/logout', oldToken, 'POST'); } catch { /* Local logout already completed. */ }
   };
 
-  return <section className="cloud-strip" aria-label="Вход и синхронизация задач">
-    {!token ? <div className="telegram-login-entry">
-      <p className="telegram-login-required">
-        <strong>Регистрация через Telegram обязательна</strong> для сохранения ваших целей и задач в личном аккаунте.
-      </p>
-      <TelegramConnect mode="login" onAuthenticated={acceptSession} />
-    </div> : !connected ? <>
-      <span>Подключаем задачи…</span>
+  if (!token) return (
+    <section className="cloud-strip" aria-label="Вход через Telegram">
+      <div className="telegram-login-entry">
+        <p className="telegram-login-required">
+          <strong>Регистрация через Telegram обязательна</strong> для сохранения ваших целей и задач в личном аккаунте.
+        </p>
+        <TelegramConnect mode="login" onAuthenticated={acceptSession} />
+      </div>
+      {error && <span role="alert" className="cloud-error">{error}</span>}
+    </section>
+  );
+
+  if (!connected) return (
+    <section className="planner-sync-loading" aria-live="polite">
+      <span>{error ? 'Не удалось подключить облако' : 'Подключаем задачи…'}</span>
       <button type="button" onClick={() => { void signOut(); }}>Выйти</button>
-    </> : <>
-      <span>Автосинхронизация включена · {snapshot?.tasks.length ?? 0} задач</span>
-      <PushNotifications token={token} />
-      {identity?.provider === 'google' && !identity.telegramLinked && <TelegramConnect mode="link" token={token} onLinked={refreshIdentity} />}
-      {identity?.telegramLinked && <span className="telegram-connected">✈ Telegram привязан {identity.telegramNotifications ? '· напоминания включены' : '· напоминания отключены командой /stop'}</span>}
-      {identity?.provider === 'telegram' && <span className="telegram-connected">Вход через Telegram</span>}
-      <button type="button" onClick={() => { void signOut(); }}>Выйти</button>
-    </>}
-    {error && <span role="alert" className="cloud-error">{error}</span>}
-  </section>;
+      {error && <span role="alert" className="cloud-error">{error}</span>}
+    </section>
+  );
+
+  return (
+    <>
+      <PlannerSignedInTools
+        token={token}
+        identity={identity}
+        taskCount={snapshot?.tasks.length ?? 0}
+        onLogout={() => { void signOut(); }}
+        onLinked={refreshIdentity}
+      />
+      {error && <div role="alert" className="planner-sync-error">{error}</div>}
+    </>
+  );
 }
