@@ -75,6 +75,15 @@ export function DayView({ date, tasks, onChangeDate, addTask, updateTask, resche
         <button type="button" className="outline-button" onClick={() => setEditing(editing === 'new' ? null : 'new')}>+ Новая задача</button>
       </div>
 
+      <div className="planner-selected-date" aria-label={`Выбранный день: ${dateLabel(date, 'EEEE, d MMMM yyyy')}`}>
+        <span className="planner-selected-date-number" aria-hidden="true">{dateLabel(date, 'dd')}</span>
+        <div className="planner-selected-date-info">
+          <span className="planner-selected-date-eyebrow">{key === todayKey ? 'СЕГОДНЯ' : 'ПЛАН НА ВЫБРАННЫЙ ДЕНЬ'}</span>
+          <h2 className="planner-selected-date-heading">{dateLabel(date, 'EEEE, d MMMM yyyy').replace(/^./, char => char.toLocaleUpperCase('ru-RU'))}</h2>
+          <span className="planner-selected-date-count">{dayTasks.length === 0 ? 'Нет запланированных целей' : `Целей и задач: ${dayTasks.length}`}</span>
+        </div>
+      </div>
+
       <ProgressLine completed={stats.completed} total={stats.total} label="ПРОГРЕСС ДНЯ" />
 
       {editing === 'new' && (
