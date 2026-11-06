@@ -66,9 +66,16 @@ export default function App() {
     setView('day');
   }
 
+  function changeView(nextView: ViewMode) {
+    // The "ДЕНЬ" tab is a one-tap shortcut back to today's goals,
+    // even if another date was previously selected.
+    if (nextView === 'day') setSelectedDate(new Date());
+    setView(nextView);
+  }
+
   return (
     <div className="app-shell">
-      <Header view={view} onChangeView={setView} />
+      <Header view={view} onChangeView={changeView} />
       <CloudSync tasks={taskStore.tasks} replaceAllTasks={taskStore.replaceAllTasks} />
       {updateAvailable && (
         <div className="update-banner" role="status">
