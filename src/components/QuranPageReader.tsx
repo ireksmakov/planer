@@ -50,6 +50,7 @@ export function QuranPageReader({
   const [bookmarkSaved, setBookmarkSaved] = useState(false);
   const cache = useRef(new Map<number, QuranPage>());
   const top = useRef<HTMLDivElement>(null);
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     top.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -116,7 +117,29 @@ export function QuranPageReader({
         <span>В этом чтении: {firstPage}–{lastPage}</span>
       </div>
 
-      <div className="quran-mushaf-page" lang="ar" dir="rtl" translate="no">
+      <div
+        className="quran-mushaf-page"
+        lang="ar"
+        dir="rtl"
+        translate="no"
+        onTouchStart={event => {
+          const touch = event.touches[0];
+          if (touch) touchStart.current = { x: touch.clientX, y: touch.clientY };
+        }}
+        onTouchEnd={event => {
+          const start = touchStart.current;
+          touchStart.current = null;
+          const end = event.changedTouches[0];
+          if (!start || !end || !displayed) return;
+          const horizontal = end.clientX - start.x;
+          const vertical = end.clientY - start.y;
+          // Preserve ordinary vertical scrolling. Only deliberate horizontal
+          // book-like swipes move to another page.
+          if (Math.abs(horizontal) < 70 || Math.abs(horizontal) < Math.abs(vertical) * 1.5) return;
+          if (horizontal < 0) onReadPage();
+          else if (page > firstPage) onBack();
+        }}
+      >
         <div className="quran-mushaf-ornament" aria-hidden="true">۞</div>
         {loading && !displayed && (
           <p className="quran-reader-loading" lang="ru" dir="ltr" role="status">Загружаем арабский текст Корана…</p>
@@ -156,8 +179,9 @@ export function QuranPageReader({
         </button>
       </div>
       <p className="quran-reader-info">
-        Нажимая «Прочитано · Далее», вы отмечаете текущую страницу и переходите к следующей.
-        Отметки и закладка сохраняются в вашем аккаунте.
+        Для перехода можно нажать «Прочитано · Далее» или пролистать страницу влево.
+        Свайп вправо возвращает назад; вертикальная прокрутка не отмечает страницу.
+        Прочитанные страницы и закладка сохраняются в вашем аккаунте.
       </p>
       <p className="quran-reader-source">
         Арабский текст без изменений: AlQuran Cloud, редакция quran-uthmani.
