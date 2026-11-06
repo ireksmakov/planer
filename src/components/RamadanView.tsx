@@ -1,6 +1,8 @@
 import { RamadanLibrary } from './RamadanLibrary';
 import { QuranReadingPlan } from './QuranReadingPlan';
 import { RamadanTaskCard } from './RamadanTaskCard';
+import { RamadanQuranDaily } from './RamadanQuranDaily';
+import { QURAN_TRACKER_CATEGORY, READINGS_PER_DAY, RAMADAN_DAYS, completedDaySessions } from '../utils/quranReading';
 import { useMemo, useState } from 'react';
 import type { Task, TaskActions } from '../types';
 import { format, addDays, parseISO, isValid } from 'date-fns';
@@ -29,6 +31,14 @@ export function RamadanView({ tasks, addTask, updateTask, toggleTask, deleteTask
   const planned = ramadanTasks.filter(t => dates.includes(t.date));
   const complete = planned.filter(t => t.completed).length;
   const dayDone = dayTasks.filter(t => t.completed).length;
+  const readingPlan = tasks.find(task => task.category === QURAN_TRACKER_CATEGORY)?.quranReading;
+  const readingEnabled = Boolean(readingPlan && dates[0] && readingPlan.startDate === dates[0]);
+  const readingDone = readingEnabled && readingPlan ? readingPlan.completedSessions.length : 0;
+  const dayReadingDone = readingEnabled && readingPlan ? completedDaySessions(readingPlan, selected) : 0;
+  const totalGoals = planned.length + (readingEnabled ? RAMADAN_DAYS * READINGS_PER_DAY : 0);
+  const completedGoals = complete + readingDone;
+  const totalDayGoals = dayTasks.length + (readingEnabled ? READINGS_PER_DAY : 0);
+  const completedDayGoals = dayDone + dayReadingDone;
 
   const saveStart = (value: string) => {
     setStart(value);
@@ -95,29 +105,30 @@ export function RamadanView({ tasks, addTask, updateTask, toggleTask, deleteTask
     </div>
     {!base ? <div className="ramadan-empty">Укажите дату начала Рамадана, чтобы открыть календарь и добавить цели.</div> : <>
       <div className="ramadan-summary">
-        <div><span className="eyebrow">ВЫПОЛНЕНО ПУНКТОВ</span><strong>{complete} из {planned.length}</strong></div>
-        <div><span className="eyebrow">ПРОГРЕСС</span><strong>{planned.length ? Math.round(complete / planned.length * 100) : 0}%</strong></div>
+        <div><span className="eyebrow">ВЫПОЛНЕНО ПУНКТОВ</span><strong>{completedGoals} из {totalGoals}</strong></div>
+        <div><span className="eyebrow">ПРОГРЕСС</span><strong>{totalGoals ? Math.round(completedGoals / totalGoals * 100) : 0}%</strong></div>
       </div>
       <div className="ramadan-days" aria-label="Дни Рамадана">
         {dates.map((date, index) => {
           const daily = ramadanTasks.filter(t => t.date === date);
-          const done = daily.filter(t => t.completed).length;
+          const done = daily.filter(t => t.completed).length + (readingEnabled && readingPlan ? completedDaySessions(readingPlan, index) : 0);
+          const dailyTotal = daily.length + (readingEnabled ? READINGS_PER_DAY : 0);
           return <button type="button" key={date} className={`ramadan-day ${selected === index ? 'active' : ''}`} onClick={() => setSelected(index)} aria-pressed={selected === index}>
             <span>День</span><strong>{String(index + 1).padStart(2, '0')}</strong><small>{format(parseISO(date), 'd MMM', { locale: ru })}</small>
-            <span className="ramadan-day-count">{daily.length ? `${done}/${daily.length}` : '—'}</span>
+            <span className="ramadan-day-count">{dailyTotal ? `${done}/${dailyTotal}` : '—'}</span>
           </button>;
         })}
       </div>
       <div className="ramadan-work">
         <div className="ramadan-work-heading">
-          <div><span className="eyebrow">ПЛАН ПОКЛОНЕНИЯ И ДОБРЫХ ДЕЛ</span><h2>День {selected + 1}</h2><p>{format(parseISO(dayKey), 'd MMMM yyyy', { locale: ru })} · выполнено {dayDone} из {dayTasks.length}</p></div>
+          <div><span className="eyebrow">ПЛАН ПОКЛОНЕНИЯ И ДОБРЫХ ДЕЛ</span><h2>День {selected + 1}</h2><p>{format(parseISO(dayKey), 'd MMMM yyyy', { locale: ru })} · выполнено {completedDayGoals} из {totalDayGoals}</p></div>
           <div className="ramadan-plan-actions">
             <button type="button" className="ramadan-add-button" onClick={fillSample}>+ {dayTasks.length ? 'Дополнить образцом' : 'Заполнить образцом'}</button>
             {selected < dates.length - 1 && <button type="button" className="ramadan-copy-button" onClick={copyNextDay} disabled={!dayTasks.length}>Копировать на следующий день →</button>}
           </div>
         </div>
         <div className="ramadan-checklist">
-          {dayTasks.length === 0 && <p className="ramadan-hint">Пока задач нет. Добавьте готовые ежедневные дела или свою цель.</p>}
+          {dayTasks.length === 0 && <p className="ramadan-hint">{readingEnabled ? 'Других задач пока нет. Добавьте свои цели или выберите образец.' : 'Пока задач нет. Добавьте готовые ежедневные дела или свою цель.'}</p>}
           {dayTasks.map(task => (
             <RamadanTaskCard
               key={task.id}
@@ -128,6 +139,13 @@ export function RamadanView({ tasks, addTask, updateTask, toggleTask, deleteTask
             />
           ))}
         </div>
+        <RamadanQuranDaily
+          tasks={tasks}
+          updateTask={updateTask}
+          dates={dates}
+          selected={selected}
+          onOpenQuran={() => setSection('quran')}
+        />
         <div className="ramadan-clear-actions">
           <button
             type="button"
