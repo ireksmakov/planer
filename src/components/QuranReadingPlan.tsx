@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { QuranPageReader } from './QuranPageReader';
 import { format, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import type { QuranReadingPace, QuranReadingState, Task, TaskActions } from '../types';
@@ -6,7 +7,7 @@ import {
   QURAN_TRACKER_CATEGORY, QURAN_PACES, TOTAL_QURAN_PAGES,
   PRAYER_LABELS, READINGS_PER_DAY, RAMADAN_DAYS,
   pagesPerReading, quranPageRange, countCyclePages,
-  completedDaySessions, completedKhatms,
+  completedDaySessions, completedKhatms, pagesReadInSession,
 } from '../utils/quranReading';
 
 type Props = {
@@ -32,6 +33,8 @@ export function QuranReadingPlan({
   const currentStartDate = dates[0];
   const mismatchedStart = Boolean(plan && currentStartDate && plan.startDate !== currentStartDate);
   const [feedback, setFeedback] = useState('');
+  const [activeSession, setActiveSession] = useState<number | null>(null);
+  const [readerPage, setReaderPage] = useState(1);
 
   const persist = (reading: QuranReadingState) => {
     if (record) {
@@ -57,23 +60,76 @@ export function QuranReadingPlan({
       return;
     }
     if (plan && plan.pace === pace && !mismatchedStart) return;
-    if (plan && plan.completedSessions.length > 0 &&
+    if (plan && (plan.completedSessions.length > 0 || Object.values(plan.pageProgress ?? {}).some(x => x > 0)) &&
       !window.confirm('Изменить темп чтения? Отметки ранее прочитанных страниц в этом плане будут сброшены. Продолжить?')) {
       return;
     }
-    persist({ pace, startDate: currentStartDate, completedSessions: [] });
+    persist({ pace, startDate: currentStartDate, completedSessions: [], pageProgress: {}, bookmark: null });
+    setActiveSession(null);
     onSelectDay(0);
   };
 
   const toggleSession = (index: number) => {
     if (!plan || !currentStartDate || mismatchedStart) return;
     const checked = new Set(plan.completedSessions);
-    if (checked.has(index)) checked.delete(index);
-    else checked.add(index);
+    const pageProgress = { ...plan.pageProgress };
+    if (checked.has(index)) {
+      checked.delete(index);
+      delete pageProgress[String(index)];
+    } else {
+      checked.add(index);
+      pageProgress[String(index)] = quranPageRange(
+        plan.pace, Math.floor(index / READINGS_PER_DAY), index % READINGS_PER_DAY,
+      ).pages;
+    }
     persist({
       ...plan,
       completedSessions: [...checked].sort((a, b) => a - b),
+      pageProgress,
     });
+  };
+
+  const openReading = (session: number, bookPage?: number) => {
+    if (!plan || !currentStartDate || mismatchedStart) return;
+    const day = Math.floor(session / READINGS_PER_DAY);
+    const prayer = session % READINGS_PER_DAY;
+    if (day < 0 || day >= RAMADAN_DAYS) return;
+    const range = quranPageRange(plan.pace, day, prayer);
+    const progress = pagesReadInSession(plan, session);
+    setReaderPage(bookPage && bookPage >= range.start && bookPage <= range.end
+      ? bookPage
+      : Math.min(range.end, range.start + progress));
+    setActiveSession(session);
+    if (day !== selected) onSelectDay(day);
+  };
+
+  const markPageRead = (session: number, page: number) => {
+    if (!plan || !currentStartDate || mismatchedStart) return;
+    const day = Math.floor(session / READINGS_PER_DAY);
+    const prayer = session % READINGS_PER_DAY;
+    const range = quranPageRange(plan.pace, day, prayer);
+    if (page < range.start || page > range.end) return;
+
+    const existing = pagesReadInSession(plan, session);
+    // Only a consecutive page extends real reading progress. Re-reading
+    // pages already counted never increases it twice.
+    const newlyRead = page === range.start + existing
+      ? Math.min(range.pages, existing + 1) : existing;
+    const completed = new Set(plan.completedSessions);
+    if (newlyRead >= range.pages) completed.add(session);
+    const nextPage = Math.min(range.end, page + 1);
+    persist({
+      ...plan,
+      completedSessions: [...completed].sort((a, b) => a - b),
+      pageProgress: { ...plan.pageProgress, [String(session)]: newlyRead },
+      // Automatically remember reading position; explicit bookmark is separate.
+    });
+    setReaderPage(nextPage);
+  };
+
+  const saveBookmark = (session: number, page: number) => {
+    if (!plan || !currentStartDate || mismatchedStart) return;
+    persist({ ...plan, bookmark: { session, page } });
   };
 
   const cycle = plan ? Math.floor(selected / plan.pace) : 0;
