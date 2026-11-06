@@ -163,10 +163,9 @@ export function TelegramConnect({ mode, token, onAuthenticated, onLinked }: Prop
     };
   }, [ticket, mode, onAuthenticated, onLinked]);
 
-  if (!available) return mode === 'login' && configurationLoaded
-    ? <span className="telegram-not-ready">Вход через Telegram временно недоступен. Повторите попытку позже.</span>
-    : null;
-
+  // Never hide the sign-in button when the config request is slow or fails.
+  // The Telegram start endpoint is the authoritative availability check; a
+  // temporary /api/auth/config error must not strand users without a login.
   const ready = ticket && ticket.expiresAt > Date.now() + 5000;
   const label = mode === 'login' ? '✈ Войти через Telegram' : '✈ Привязать Telegram';
 
@@ -195,6 +194,9 @@ export function TelegramConnect({ mode, token, onAuthenticated, onLinked }: Prop
       </button>
     )}
     {mode === 'link' && <small>Привяжите Telegram к аккаунту, чтобы получать напоминания.</small>}
+    {configurationLoaded && !available && mode === 'login' && error && (
+      <small className="telegram-not-ready">Проверьте соединение с сервером Планера и повторите вход.</small>
+    )}
     {error && <span className="cloud-error" role="alert">{error}</span>}
   </div>;
 }
