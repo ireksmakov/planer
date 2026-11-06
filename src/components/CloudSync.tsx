@@ -132,13 +132,16 @@ export function CloudSync({ tasks, replaceAllTasks }: {
       if (inflight.current) return;
       const now = tasksRef.current;
       const modified = now.find(t => previous.current.get(t.id) !== JSON.stringify(t));
-      const removed = [...cloudIds.current].find(id => !now.some(t => t.id === id));
-      if (!modified && !removed) return;
+      const currentIds = new Set(now.map(task => task.id));
+      const removed = [...cloudIds.current].filter(id => !currentIds.has(id));
+      if (!modified && removed.length === 0) return;
       inflight.current = true;
       try {
         const data = modified
           ? await request<Snapshot>('/api/task', token, 'PUT', { task: modified, baseVersion: snapshot.version })
-          : await request<Snapshot>('/api/delete', token, 'POST', { id: removed, baseVersion: snapshot.version });
+          : removed.length === 1
+            ? await request<Snapshot>('/api/delete', token, 'POST', { id: removed[0], baseVersion: snapshot.version })
+            : await request<Snapshot>('/api/delete-batch', token, 'POST', { ids: removed, baseVersion: snapshot.version });
         setSnapshot(data);
         cloudIds.current = new Set(data.tasks.map(t => t.id));
         previous.current = new Map(data.tasks.map(t => [t.id, JSON.stringify(t)]));
