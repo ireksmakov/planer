@@ -44,6 +44,10 @@ class DeleteRequest(BaseModel):
     id: str = Field(min_length=1, max_length=100)
     baseVersion: int = Field(ge=0)
 
+class DeleteBatchRequest(BaseModel):
+    ids: list[str] = Field(min_length=1, max_length=3000)
+    baseVersion: int = Field(ge=0)
+
 @contextmanager
 def database():
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -165,6 +169,31 @@ def delete_task(body: DeleteRequest, authorization: str | None = Header(default=
             raise HTTPException(409, "Cloud version changed. Refresh before deleting.")
         db.execute("DELETE FROM tasks WHERE uid=? AND id=?", (uid,body.id))
         db.execute("UPDATE users SET version=version+1 WHERE uid=?", (uid,))
+        db.commit()
+        return snapshot(db, uid)
+
+@app.post("/api/delete-batch")
+def delete_tasks_batch(body: DeleteBatchRequest, authorization: str | None = Header(default=None)):
+    """Atomically delete selected IDs belonging to the authenticated user only.
+
+    Version check prevents an outdated device from wiping newly changed data.
+    Other user accounts and all IDs not explicitly supplied remain untouched.
+    """
+    if any(not isinstance(task_id, str) or not 1 <= len(task_id) <= 100 for task_id in body.ids):
+        raise HTTPException(422, "Invalid task ID")
+    uid = user(authorization)
+    with _lock, database() as db:
+        db.execute("INSERT OR IGNORE INTO users(uid) VALUES(?)", (uid,))
+        if snapshot_version(db, uid) != body.baseVersion:
+            raise HTTPException(409, "Cloud version changed. Refresh before deleting.")
+        unique_ids = sorted(set(body.ids))
+        changed = 0
+        for task_id in unique_ids:
+            changed += db.execute(
+                "DELETE FROM tasks WHERE uid=? AND id=?", (uid, task_id)
+            ).rowcount
+        if changed:
+            db.execute("UPDATE users SET version=version+1 WHERE uid=?", (uid,))
         db.commit()
         return snapshot(db, uid)
 
