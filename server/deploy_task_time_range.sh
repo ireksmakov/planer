@@ -18,7 +18,7 @@ echo "Checking Planner API, Telegram subscriptions and start/end reminders..."
 /opt/planer-api/venv/bin/python -m compileall -q server
 /opt/planer-api/venv/bin/python -m unittest \
   server.test_task_time_range server.test_reminders \
-  server.test_telegram_auth server.test_telegram_group server.test_telegram_gate_flow server.test_batch_delete
+  server.test_telegram_auth server.test_telegram_group server.test_telegram_gate_flow server.test_batch_delete server.test_quran_pages
 
 echo "Building updated Planner interface..."
 # OAuth button is hidden; no need to modify bot/group config.
