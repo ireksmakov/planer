@@ -242,23 +242,61 @@ export function QuranReadingPlan({
                 onClick={() => onSelectDay(selected + 1)}>›</button>
             </div>
             <p className="quran-day-date">{dateLabel} · {sessionsDone} из {READINGS_PER_DAY} чтений</p>
+            {plan.bookmark && (
+              <button
+                type="button"
+                className="quran-bookmark-resume"
+                onClick={() => openReading(plan.bookmark!.session, plan.bookmark!.page)}
+              >
+                🔖 Продолжить с закладки · страница {plan.bookmark.page}
+              </button>
+            )}
             <div className="quran-reading-checklist">
               {PRAYER_LABELS.map((label, index) => {
                 const idx = selected * READINGS_PER_DAY + index;
                 const checked = plan.completedSessions.includes(idx);
                 const pages = quranPageRange(plan.pace, selected, index);
+                const readCount = pagesReadInSession(plan, idx);
+                const readingThis = activeSession === idx;
+                const hasBookmark = plan.bookmark?.session === idx;
                 return (
-                  <label key={label} className={`quran-reading-row ${checked ? 'quran-reading-row--done' : ''}`}>
-                    <input type="checkbox" checked={checked} onChange={() => toggleSession(idx)} />
-                    <span className="quran-reading-row-body">
-                      <strong>{label}</strong>
-                      <span>Страницы {pages.start}–{pages.end}</span>
-                      {pages.lastReadingOfCycle && <small>Завершение Корана · последние 4 страницы дополнительно</small>}
-                    </span>
-                    <span className="quran-reading-row-pages">
-                      {checked ? '✓ Прочитано' : `${pages.pages} стр.`}
-                    </span>
-                  </label>
+                  <div key={label} className={`quran-reading-item ${checked ? 'quran-reading-item--done' : ''}`}>
+                    <div className={`quran-reading-row ${checked ? 'quran-reading-row--done' : ''}`}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleSession(idx)}
+                        aria-label={`Отметить чтение: ${label}`}
+                      />
+                      <div className="quran-reading-row-body">
+                        <strong>{label}</strong>
+                        <span>Страницы {pages.start}–{pages.end}</span>
+                        {pages.lastReadingOfCycle && <small>Завершение Корана · последние 4 страницы дополнительно</small>}
+                        <span className="quran-reading-slot-progress">Прочитано {readCount} из {pages.pages} страниц</span>
+                      </div>
+                      <button
+                        type="button"
+                        className="quran-reading-open"
+                        aria-expanded={readingThis}
+                        onClick={() => readingThis ? setActiveSession(null) : openReading(idx)}
+                      >
+                        {readingThis ? 'Свернуть' : checked ? 'Перечитать' : readCount > 0 ? 'Продолжить' : '📖 Читать'}
+                      </button>
+                    </div>
+                    {readingThis && (
+                      <QuranPageReader
+                        page={readerPage}
+                        firstPage={pages.start}
+                        lastPage={pages.end}
+                        readCount={readCount}
+                        isBookmarked={Boolean(hasBookmark && plan.bookmark?.page === readerPage)}
+                        onClose={() => setActiveSession(null)}
+                        onBack={() => setReaderPage(page => Math.max(pages.start, page - 1))}
+                        onReadPage={() => markPageRead(idx, readerPage)}
+                        onBookmark={() => saveBookmark(idx, readerPage)}
+                      />
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -279,7 +317,7 @@ export function QuranReadingPlan({
       <div className="quran-reading-footer">
         <strong>Почему в конце цикла немного больше?</strong>
         <p>В распространённом мединском мусхафе 604 страницы. Ровные порции дают 600 страниц, поэтому к последнему чтению каждого цикла добавлены ещё четыре. В других изданиях нумерация страниц может отличаться.</p>
-        <a href="https://quran.com/" target="_blank" rel="noopener noreferrer">📖 Открыть Коран для чтения</a>
+        <p><strong>Читайте прямо здесь:</strong> нажмите «📖 Читать» после нужного намаза. Текст загрузится внутри Планера, а кнопка «Прочитано · Далее» будет автоматически учитывать страницы. Интернет требуется только для загрузки текста.</p>
         <p className="quran-reading-encouragement">Пусть Аллах благословит ваше время, укрепит намерение и сделает чтение Корана постоянной благой привычкой.</p>
       </div>
     </section>
