@@ -16,6 +16,7 @@ from google.oauth2 import id_token
 from pydantic import BaseModel, Field, field_validator
 from typing import Literal
 from server.telegram_auth import init_tables, lookup_session, register_routes
+from server.quran_pages import fetch_quran_page
 
 DB_PATH = Path(os.environ.get("PLANER_DB", "/opt/planer-api/data/planer.sqlite3"))
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
@@ -137,6 +138,18 @@ def snapshot(db, uid):
 @app.get("/api/health")
 def health():
     return {"ok": True}
+
+
+@app.get("/api/quran/page/{page_number}")
+def quran_page(page_number: int):
+    """Read authentic Quran pages inside Planner without external navigation."""
+    if not 1 <= page_number <= 604:
+        raise HTTPException(status_code=422, detail="Page must be between 1 and 604")
+    try:
+        return fetch_quran_page(page_number)
+    except (ConnectionError, ValueError):
+        raise HTTPException(status_code=503, detail="Quran text is temporarily unavailable")
+
 
 @app.get("/api/tasks")
 def tasks(authorization: str | None = Header(default=None)):
