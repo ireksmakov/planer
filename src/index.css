@@ -1617,3 +1617,199 @@ body { background-color: var(--paper); }
   .ramadan-clear-button { width: 100%; }
   .ramadan-clear-caption { width: 100%; text-align: center; }
 }
+
+
+/* Ramadan task details: tap the task title to open its own inline editor.
+ * The old circular priority controls are intentionally removed. */
+.ramadan-checklist .ramadan-task {
+  display: block;
+  min-width: 0;
+  padding: 16px 0 18px;
+}
+.ramadan-task-row {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  gap: 13px;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+}
+.ramadan-task .ramadan-task-checkbox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 42px;
+}
+.ramadan-task .ramadan-task-checkbox input {
+  accent-color: #285d42;
+  width: 21px;
+  height: 21px;
+  cursor: pointer;
+}
+.ramadan-task .ramadan-task-name {
+  min-width: 0;
+  width: 100%;
+  display: block;
+  padding: 7px 1px;
+  border: none;
+  background: transparent;
+  color: #1c4937;
+  text-align: left;
+  text-decoration: none;
+  font-family: inherit;
+  font-size: 18px;
+  line-height: 1.45;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.ramadan-task .ramadan-task-name:hover { color: #2a7752; }
+.ramadan-task .ramadan-task-name:focus-visible {
+  outline: 2px solid #ad874b;
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+.ramadan-task .ramadan-task-name.done {
+  color: #647c6d;
+  text-decoration: line-through;
+  opacity: .7;
+}
+.ramadan-task .ramadan-task-buttons { justify-content: flex-end; gap: 2px 10px; }
+.ramadan-task .ramadan-task-buttons button { min-height: 40px; font-size: 12px; padding: 5px 3px; }
+.ramadan-task-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding-left: 47px;
+  margin-top: 4px;
+}
+.ramadan-task-schedule {
+  color: #356148;
+  font-size: 13px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+.ramadan-task-priority {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border: 1px solid;
+  border-radius: 5px;
+  font-size: 10px;
+  line-height: 1.4;
+  font-weight: 800;
+}
+.ramadan-task-priority--high { color: #963d49; border-color: #dbb0b6; background: #fbe9eb; }
+.ramadan-task-priority--medium { color: #8a6827; border-color: #dcc489; background: #fbf4dd; }
+.ramadan-task-priority--low { color: #286646; border-color: #aed4bb; background: #e6f4e9; }
+.ramadan-task-subgoals {
+  margin: 12px 0 0 47px;
+  padding: 12px 15px;
+  border-left: 2px solid #b9cdbb;
+  background: rgba(255,255,255,.28);
+  color: #305b43;
+}
+.ramadan-task-subgoals-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: #64816c;
+}
+.ramadan-task-subgoals ol {
+  margin: 8px 0 0;
+  padding-left: 21px;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.ramadan-task-subgoals li { padding-left: 2px; overflow-wrap: anywhere; }
+.ramadan-task-details {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin: 18px 0 0 47px;
+  padding: 18px;
+  border: 1px solid #bdd6c4;
+  border-radius: 16px;
+  background: #fffdf8;
+}
+.ramadan-task-details-heading {
+  font-size: 14px;
+  font-weight: 800;
+  color: #1a4835;
+}
+.ramadan-task .ramadan-detail-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  color: #52725c;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .04em;
+}
+.ramadan-task .ramadan-detail-label input,
+.ramadan-task .ramadan-detail-label select,
+.ramadan-task .ramadan-detail-label textarea {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 45px;
+  padding: 10px 12px;
+  background: #f8f7f1;
+  color: #1a4435;
+  border: 1px solid #b6cabb;
+  border-radius: 9px;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 550;
+  letter-spacing: normal;
+  line-height: 1.45;
+  box-sizing: border-box;
+}
+.ramadan-task .ramadan-detail-label textarea { min-height: 100px; resize: vertical; }
+.ramadan-task .ramadan-detail-label small {
+  color: #64806a;
+  font-size: 11px;
+  font-weight: 450;
+  letter-spacing: normal;
+  line-height: 1.45;
+}
+.ramadan-detail-time { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; }
+.ramadan-task .ramadan-detail-reminder {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: #285841;
+  font-size: 12px;
+  line-height: 1.5;
+  font-weight: 650;
+}
+.ramadan-task .ramadan-detail-reminder input { width: 19px; height: 19px; flex: none; margin-top: 1px; }
+.ramadan-detail-error { margin: 0; font-size: 12px; color: #a23e35; }
+.ramadan-detail-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.ramadan-task .ramadan-detail-actions button {
+  min-height: 44px;
+  padding: 10px 15px;
+  border-radius: 9px;
+  text-decoration: none;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 750;
+}
+.ramadan-task .ramadan-detail-actions .ramadan-detail-save { background: #285d42; border: 1px solid #285d42; color: #fff; }
+.ramadan-task .ramadan-detail-actions .ramadan-detail-cancel { background: transparent; border: 1px solid #b8cdbc; color: #315b43; }
+@media (max-width: 620px) {
+  .ramadan-task-row { grid-template-columns: 25px minmax(0,1fr); gap: 7px 10px; }
+  .ramadan-task .ramadan-task-checkbox { width: 25px; }
+  .ramadan-task .ramadan-task-name { font-size: 16px; }
+  .ramadan-task .ramadan-task-buttons { grid-column: 2; justify-content: flex-start; }
+  .ramadan-task .ramadan-task-buttons button { min-height: 34px; font-size: 12px; }
+  .ramadan-task-summary { padding-left: 35px; }
+  .ramadan-task-subgoals { margin-left: 35px; }
+  .ramadan-task-details { margin-left: 0; padding: 14px; }
+  .ramadan-detail-time { gap: 8px; }
+}
