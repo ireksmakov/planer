@@ -140,7 +140,7 @@ export function PushNotifications({ token, compact = false }: { token: string; c
             <>
               <p className="planner-push-enabled">● Уведомления включены</p>
               <button className="planner-utility-action" type="button"
-                disabled={state === 'working'} onClick={() => { void disable(); }}>
+                onClick={() => { void disable(); }}>
                 Отключить на устройстве
               </button>
             </>
