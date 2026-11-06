@@ -169,7 +169,7 @@ export function RamadanTaskCard({ task, onToggle, onUpdate, onDelete }: Props) {
               disabled={!start}
               onChange={event => setRepeatReminder(event.target.checked)}
             />
-            <span>🔔 Настойчивое напоминание (повтор 2/2 в конце задачи)</span>
+            <span>🔔 Настойчивое напоминание — повтор 1/2 через 2 минуты, 2/2 {end ? 'в конце задачи' : 'через 1 час без времени окончания'}</span>
           </label>
           {error && <p className="ramadan-detail-error" role="alert">{error}</p>}
           <div className="ramadan-detail-actions">
