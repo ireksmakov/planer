@@ -13,13 +13,34 @@ from pathlib import Path
 from fastapi import FastAPI, Header, HTTPException
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+from typing import Literal
 from server.telegram_auth import init_tables, lookup_session, register_routes
 
 DB_PATH = Path(os.environ.get("PLANER_DB", "/opt/planer-api/data/planer.sqlite3"))
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
 _lock = threading.RLock()
 app = FastAPI(title="Planer Sync API", docs_url=None, redoc_url=None, openapi_url=None)
+
+class QuranReadingState(BaseModel):
+    pace: Literal[6, 10, 12, 15, 30]
+    startDate: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    completedSessions: list[int] = Field(default_factory=list, max_length=150)
+
+    @field_validator("startDate")
+    @classmethod
+    def validate_start_date(cls, value: str) -> str:
+        if datetime.strptime(value, "%Y-%m-%d").strftime("%Y-%m-%d") != value:
+            raise ValueError("Invalid date")
+        return value
+
+    @field_validator("completedSessions")
+    @classmethod
+    def validate_sessions(cls, values: list[int]) -> list[int]:
+        if len(set(values)) != len(values) or any(not 0 <= value < 150 for value in values):
+            raise ValueError("Invalid or repeated reading session")
+        return sorted(values)
+
 
 class Task(BaseModel):
     id: str = Field(min_length=1, max_length=100)
@@ -33,6 +54,7 @@ class Task(BaseModel):
     createdAt: int
     repeatReminder: bool = False
     subgoals: list[str] = Field(default_factory=list, max_length=30)
+    quranReading: QuranReadingState | None = None
 
 class ImportRequest(BaseModel):
     tasks: list[Task] = Field(max_length=3000)
