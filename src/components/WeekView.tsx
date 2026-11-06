@@ -58,6 +58,7 @@ export function WeekView({ date, tasks, onChangeDate, onOpenDay, addTask, toggle
               <button type="button" className="week-day-head" onClick={() => onOpenDay(day)} aria-label={`Открыть ${dateLabel(day, 'd MMMM')}`}>
                 <span className="eyebrow">{capitalize(dateLabel(day, 'EEEEEE'))}</span>
                 <span className="week-day-number">{dateLabel(day, 'd')}{isCurrentDay(day) && <i className="today-dot" aria-label="Сегодня" />}</span>
+                <span className="week-day-month">{dateLabel(day, 'LLLL yyyy')}</span>
                 <span className="week-day-stat">{doneCount} / {dayTasks.length}</span>
               </button>
               <div className="week-entries">
@@ -70,6 +71,7 @@ export function WeekView({ date, tasks, onChangeDate, onOpenDay, addTask, toggle
                     <button type="button" className="week-task-open" onClick={() => onOpenDay(day)}>
                       {task.time && <span className="week-task-time">{task.time}{task.endTime ? `–${task.endTime}` : ''}</span>}
                       <span className="week-task-name">{task.title}</span>
+                      <span className="week-task-date">{dateLabel(day, 'd MMMM')} · {capitalize(dateLabel(day, 'EEEE'))}</span>
                       <PriorityIndicator priority={task.priority} compact />
                     </button>
                   </div>
