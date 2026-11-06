@@ -1,0 +1,35 @@
+name: Validate Planner pull requests
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout proposed changes
+        uses: actions/checkout@v4
+      - name: Use Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install frontend dependencies
+        run: npm install --no-audit --no-fund
+      - name: Check types and build frontend
+        run: npm run build
+      - name: Verify Quran page numbering and reading progress
+        run: node scripts/test-quran-pages.mjs
+      - name: Use Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install API test dependencies
+        run: python -m pip install -r server/requirements.txt
+      - name: Verify backend regression tests
+        run: |
+          python -m compileall -q server
+          python -m unittest server.test_reminders server.test_telegram_auth server.test_telegram_group server.test_telegram_gate_flow server.test_batch_delete server.test_task_time_range server.test_quran_pages
