@@ -11,7 +11,7 @@ const SAMPLE = ['Тахаджуд намаз', 'Витр намаз', 'Сунн�
 
 type Props = { tasks: Task[] } & TaskActions;
 
-export function RamadanView({ tasks, addTask, updateTask, toggleTask, deleteTask }: Props) {
+export function RamadanView({ tasks, addTask, updateTask, toggleTask, deleteTask, deleteTasks }: Props) {
   const [start, setStart] = useState(() => localStorage.getItem(START_KEY) || '');
   const [selected, setSelected] = useState(0);
   const [customTitle, setCustomTitle] = useState('');
@@ -52,6 +52,19 @@ export function RamadanView({ tasks, addTask, updateTask, toggleTask, deleteTask
       addTask({ title: task.title, date: next, time: task.time, endTime: task.endTime, priority: task.priority, category: CATEGORY, repeatReminder: task.repeatReminder });
     }
     setSelected(selected + 1);
+  };
+  const clearSelectedDay = () => {
+    if (!dayKey || dayTasks.length === 0) return;
+    const description = format(parseISO(dayKey), 'd MMMM yyyy', { locale: ru });
+    const agreed = window.confirm(
+      `Очистить все задачи дня ${selected + 1} (${description})?\n\n` +
+      `Будут удалены ${dayTasks.length} задач(и), включая выполненные.\n` +
+      'Другие дни Рамадана и обычные задачи останутся без изменений.\n\n' +
+      'Удалённые задачи нельзя будет восстановить автоматически.'
+    );
+    if (!agreed) return;
+    deleteTasks(dayTasks.map(task => task.id));
+    setEditingId(null);
   };
   const saveEdit = (task: Task) => {
     if (!editTitle.trim()) return;
@@ -111,6 +124,18 @@ export function RamadanView({ tasks, addTask, updateTask, toggleTask, deleteTask
               </div>
             </>}
           </div>)}
+        </div>
+        <div className="ramadan-clear-actions">
+          <button
+            type="button"
+            className="ramadan-clear-button"
+            onClick={clearSelectedDay}
+            disabled={dayTasks.length === 0}
+            aria-label={`Очистить все задачи дня ${selected + 1}`}
+          >
+            <span aria-hidden="true">✕</span> Очистить все задачи
+          </button>
+          <span className="ramadan-clear-caption">Только день {selected + 1} · {dayTasks.length} задач</span>
         </div>
         <form className="ramadan-custom" onSubmit={e => { e.preventDefault(); createTask(customTitle); setCustomTitle(''); }}>
           <input value={customTitle} onChange={e => setCustomTitle(e.target.value)} placeholder="Своя цель или доброе дело" aria-label="Новая цель Рамадана" maxLength={500} />
