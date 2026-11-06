@@ -13,7 +13,7 @@ from pathlib import Path
 from fastapi import FastAPI, Header, HTTPException
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import Literal
 from server.telegram_auth import init_tables, lookup_session, register_routes
 from server.quran_pages import fetch_quran_page
@@ -23,10 +23,17 @@ GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
 _lock = threading.RLock()
 app = FastAPI(title="Planer Sync API", docs_url=None, redoc_url=None, openapi_url=None)
 
+class QuranBookmark(BaseModel):
+    session: int = Field(ge=0, lt=150)
+    page: int = Field(ge=1, le=604)
+
+
 class QuranReadingState(BaseModel):
     pace: Literal[6, 10, 12, 15, 30]
     startDate: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
     completedSessions: list[int] = Field(default_factory=list, max_length=150)
+    pageProgress: dict[str, int] = Field(default_factory=dict, max_length=150)
+    bookmark: QuranBookmark | None = None
 
     @field_validator("startDate")
     @classmethod
@@ -41,6 +48,33 @@ class QuranReadingState(BaseModel):
         if len(set(values)) != len(values) or any(not 0 <= value < 150 for value in values):
             raise ValueError("Invalid or repeated reading session")
         return sorted(values)
+
+    @model_validator(mode="after")
+    def validate_page_progress(self):
+        pages_per_session = 600 // (self.pace * 5)
+
+        def bounds(session: int) -> tuple[int, int]:
+            day_in_cycle = (session // 5) % self.pace
+            prayer = session % 5
+            first = (day_in_cycle * 5 + prayer) * pages_per_session + 1
+            last = first + pages_per_session - 1
+            if day_in_cycle == self.pace - 1 and prayer == 4:
+                last += 4
+            return first, last
+
+        for key, count in self.pageProgress.items():
+            if (not key.isdecimal() or str(int(key)) != key
+                    or not 0 <= int(key) < 150):
+                raise ValueError("Invalid Quran session index")
+            first, last = bounds(int(key))
+            if count < 0 or count > last - first + 1:
+                raise ValueError("Quran page progress is out of bounds")
+
+        if self.bookmark:
+            first, last = bounds(self.bookmark.session)
+            if not first <= self.bookmark.page <= last:
+                raise ValueError("Bookmark must be inside its reading session")
+        return self
 
 
 class Task(BaseModel):
