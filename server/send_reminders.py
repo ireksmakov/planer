@@ -67,6 +67,9 @@ def due_reminder_stage(task, local_now):
     # End takes priority over +1 minute timer grace of any earlier reminder.
     if task.get("repeatReminder") is True and end and is_due(end):
         return 6
+    minutes = task.get("reminderMinutes", 30)
+    if isinstance(minutes, int) and minutes in (5, 10, 15, 30, 60, 1440) and is_due(start - timedelta(minutes=minutes)):
+        return -minutes
     if is_due(start):
         return 0
     if task.get("repeatReminder") is not True:
@@ -82,15 +85,7 @@ def due_reminder_stage(task, local_now):
 
 
 def telegram_reminder_stage(task, local_now):
-    """Telegram-only heads-up 15 minutes before due; preserve normal reminder schedule."""
-    if task.get("completed"):
-        return None
-    scheduled = str(task.get("date", "")) + " " + str(task.get("time", ""))
-    # One-minute grace for the systemd timer. The DB step=-15 prevents duplicates.
-    for grace in (0, 1):
-        ahead = local_now + timedelta(minutes=15 - grace)
-        if scheduled == ahead.strftime("%Y-%m-%d %H:%M"):
-            return -15
+    """Use the same reminder schedule for Telegram and Web Push."""
     return due_reminder_stage(task, local_now)
 
 
@@ -100,9 +95,9 @@ def telegram_reminder_message(task, stage):
     when = escape(str(task["time"]))
     end_time = escape(str(task.get("endTime") or ""))
     priority_icon, priority_label = priority_style(task)
-    if stage == -15:
+    if stage < 0:
         heading = "🕌 НАПОМИНАНИЕ О ЦЕЛИ"
-        detail = "⏳ До вашей цели осталось <b>15 минут</b>."
+        detail = f"⏳ До вашей цели осталось <b>{-stage} минут</b>."
         closing = "Пусть Аллах дарует баракат вашему времени и облегчит задуманное."
     elif stage == 0:
         heading = "🌙 ВРЕМЯ ЦЕЛИ НАСТУПИЛО"
@@ -209,7 +204,7 @@ def run():
                         continue
                     db.commit()  # reserve a delivery before contacting push service
                     priority_icon, _ = priority_style(task)
-                    heading = (priority_icon + " Планер · " + time) if stage == 0 else (
+                    heading = (priority_icon + " Планер · " + time) if stage == 0 else (priority_icon + " Планер · Напоминание за " + str(-stage) + " мин") if stage < 0 else (
                         priority_icon + " Планер · Повтор " + ("1/2" if stage == 2 else "2/2")
                     )
                     payload = json.dumps({

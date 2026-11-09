@@ -18,6 +18,7 @@ export function TaskForm({ date, initial, compact = false, onSubmit, onCancel }:
   const [priority, setPriority] = useState<TaskPriority>(initial?.priority ?? 'medium');
   const [category, setCategory] = useState(initial?.category ?? 'Личное');
   const [recurrence, setRecurrence] = useState<TaskRecurrence>(initial?.recurrence ?? 'none');
+  const [reminderMinutes, setReminderMinutes] = useState(initial?.reminderMinutes ?? 30);
   const [repeatReminder, setRepeatReminder] = useState(initial?.repeatReminder ?? false);
   const [error, setError] = useState(false);
   const [dateError, setDateError] = useState(false);
@@ -30,6 +31,7 @@ export function TaskForm({ date, initial, compact = false, onSubmit, onCancel }:
     setTimeError('');
     setPriority(initial?.priority ?? 'medium');
     setCategory(initial?.category ?? 'Личное');
+    setReminderMinutes(initial?.reminderMinutes ?? 30);
     setRepeatReminder(initial?.repeatReminder ?? false);
     setRecurrence(initial?.recurrence ?? 'none');
     setError(false);
@@ -66,6 +68,7 @@ export function TaskForm({ date, initial, compact = false, onSubmit, onCancel }:
       endTime,
       priority,
       category: category.trim() || 'Без категории',
+      reminderMinutes: time ? reminderMinutes : -1,
       repeatReminder: Boolean(time && repeatReminder),
       recurrence,
       subgoals: initial?.subgoals,
@@ -133,6 +136,20 @@ export function TaskForm({ date, initial, compact = false, onSubmit, onCancel }:
           <option value="yearly">Каждый год</option>
         </select>
         {recurrence !== 'none' && <small style={{ display: 'block', marginTop: 8 }}>Повторение с выбранной даты; выполнение каждой даты учитывается отдельно.</small>}
+      </label>
+      <label className="field" style={{ display: 'block', marginBottom: 16, padding: 14, border: '1px solid #b5cdbf', borderRadius: 12, background: '#edf5ee' }}>
+        <span className="field-label">🔔 Напомнить о задаче</span>
+        <select value={reminderMinutes} disabled={!time} onChange={(event) => setReminderMinutes(Number(event.target.value))} style={{ width: '100%', minHeight: 48 }}>
+          <option value={-1}>Без предварительного напоминания</option>
+          <option value={0}>В момент начала</option>
+          <option value={5}>За 5 минут</option>
+          <option value={10}>За 10 минут</option>
+          <option value={15}>За 15 минут</option>
+          <option value={30}>За 30 минут</option>
+          <option value={60}>За 1 час</option>
+          <option value={1440}>За 1 день</option>
+        </select>
+        <small style={{ display: 'block', marginTop: 8 }}>По умолчанию за 30 минут. Одно предварительное напоминание; настойчивые повторы настраиваются ниже.</small>
       </label>
       <label className="reminder-repeat-option">
         <input type="checkbox" checked={repeatReminder && Boolean(time)} disabled={!time} onChange={(event) => setRepeatReminder(event.target.checked)} />

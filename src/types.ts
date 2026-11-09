@@ -27,12 +27,13 @@ export interface Task {
   recurrenceSkipped?: string[];
   recurrenceUntil?: string; // Exclusive end date for a split series
   recurrenceOverrides?: Record<string, Partial<TaskInput>>;
+  reminderMinutes?: number; // minutes before start: 0, 5, 10, 15, 30, 60, 1440; -1 disables advance reminder
   repeatReminder?: boolean; // repeat at +2 min and at task end, or +1 hour if no end
   subgoals?: string[]; // optional additional goals shown under the main task
   quranReading?: QuranReadingState | null; // dedicated 604-page tracker, not a daily goal
 }
 
-export type TaskInput = Pick<Task, 'title' | 'date' | 'time' | 'priority' | 'category'> & { repeatReminder?: boolean; recurrence?: TaskRecurrence; endTime?: string; subgoals?: string[]; quranReading?: QuranReadingState | null };
+export type TaskInput = Pick<Task, 'title' | 'date' | 'time' | 'priority' | 'category'> & { repeatReminder?: boolean; reminderMinutes?: number; recurrence?: TaskRecurrence; endTime?: string; subgoals?: string[]; quranReading?: QuranReadingState | null };
 
 export interface TaskActions {
   addTask: (input: TaskInput) => void;
