@@ -1,8 +1,15 @@
 import { useState } from 'react';
-import type { Task } from '../types';
+import type { Task, TaskColor } from '../types';
 import { dateLabel, fromDateKey, toDateKey, today } from '../utils/date';
 import { RescheduleForm } from './RescheduleForm';
 import { PriorityIndicator } from './PriorityIndicator';
+
+const TASK_COLOR_HEX: Record<TaskColor, string> = {
+  default: '#2e6d61', cherry: '#a51f50', coral: '#cf356b', orange: '#e45b2c',
+  yellow: '#e4b73d', lime: '#b1c744', green: '#35844e', mint: '#5ab483',
+  teal: '#419b8f', blue: '#4298dc', indigo: '#4e79e5', purple: '#986ab3',
+  pink: '#b19bd8', brown: '#76584d', gray: '#666666',
+};
 
 interface TaskItemProps {
   task: Task;
@@ -20,9 +27,10 @@ export function TaskItem({
   const [rescheduling, setRescheduling] = useState(false);
   const isOverdue = !task.completed && task.date < toDateKey(today());
   const isActive = !task.completed && !isOverdue;
+  const chosenColor = task.color && task.color in TASK_COLOR_HEX ? TASK_COLOR_HEX[task.color] : null;
 
   return (
-    <div className={`task-item ${task.completed ? 'is-complete' : ''} ${isOverdue ? 'is-overdue' : ''} ${isActive ? 'is-active-goal' : ''}`}>
+    <div style={chosenColor ? { borderLeft: `6px solid ${chosenColor}`, backgroundColor: `${chosenColor}12` } : undefined} className={`task-item ${task.completed ? 'is-complete' : ''} ${isOverdue ? 'is-overdue' : ''} ${isActive ? 'is-active-goal' : ''}`}>
       <span className="task-index" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
       <label className="task-check-label">
         <input
@@ -42,6 +50,7 @@ export function TaskItem({
           </span>
         )}
         <div className="task-title">{task.title}</div>
+        {task.description && <p style={{ margin: '8px 0', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontSize: '0.9em', opacity: 0.85 }}>{task.description}</p>}
         <span className={`task-date-stamp ${isOverdue ? 'task-date-stamp--overdue' : ''}`}>
           <span className="task-date-stamp-icon" aria-hidden="true">▣</span>
           {showOriginalDate ? 'Было назначено: ' : ''}

@@ -1,4 +1,5 @@
 export type ViewMode = 'day' | 'week' | 'month' | 'ramadan';
+export type TaskColor = 'default' | 'cherry' | 'coral' | 'orange' | 'yellow' | 'lime' | 'green' | 'mint' | 'teal' | 'blue' | 'indigo' | 'purple' | 'pink' | 'brown' | 'gray';
 export type TaskPriority = 'low' | 'medium' | 'high';
 export type RecurrenceScope = 'single' | 'future' | 'all';
 export type TaskRecurrence = 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
@@ -15,6 +16,8 @@ export type QuranReadingState = {
 export interface Task {
   id: string;
   title: string;
+  description?: string;
+  color?: TaskColor;
   date: string; // local date: yyyy-MM-dd
   time: string; // Начало: HH:mm, or an empty string (legacy compatible)
   endTime?: string; // Конец: optional HH:mm; older tasks have no end time
@@ -33,7 +36,7 @@ export interface Task {
   quranReading?: QuranReadingState | null; // dedicated 604-page tracker, not a daily goal
 }
 
-export type TaskInput = Pick<Task, 'title' | 'date' | 'time' | 'priority' | 'category'> & { repeatReminder?: boolean; reminderMinutes?: number; recurrence?: TaskRecurrence; endTime?: string; subgoals?: string[]; quranReading?: QuranReadingState | null };
+export type TaskInput = Pick<Task, 'title' | 'description' | 'color' | 'date' | 'time' | 'priority' | 'category'> & { repeatReminder?: boolean; reminderMinutes?: number; recurrence?: TaskRecurrence; endTime?: string; subgoals?: string[]; quranReading?: QuranReadingState | null };
 
 export interface TaskActions {
   addTask: (input: TaskInput) => void;
