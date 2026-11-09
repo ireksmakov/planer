@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { Task, ViewMode } from './types';
+import type { Task, TaskInput, RecurrenceScope, ViewMode } from './types';
 import { useTasks } from './hooks/useTasks';
 import { Header } from './components/Header';
 import { CloudSync } from './components/CloudSync';
@@ -17,6 +17,7 @@ export default function App() {
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const taskStore = useTasks();
+  const [scopeDialog, setScopeDialog] = useState<{ kind: 'edit' | 'delete'; id: string; input?: TaskInput } | null>(null);
   // A single cloud-synced Quran tracker is an internal record, never a goal
   // in the normal Day / Week / Month task calendar.
   const rangeStart = new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 1, 1);
@@ -34,20 +35,29 @@ export default function App() {
       const matches = task.recurrence === 'daily' ||
         (task.recurrence === 'weekly' && diff % 7 === 0) ||
         (task.recurrence === 'monthly' && current.getDate() === Math.min(day, new Date(current.getFullYear(), current.getMonth() + 1, 0).getDate()));
-      if (!matches || diff < 0) continue;
+      if (!matches || diff < 0 || (task.recurrenceUntil && keyOf(current) >= task.recurrenceUntil)) continue;
       const date = keyOf(current);
       if (task.recurrenceSkipped?.includes(date)) continue;
-      results.push({ ...task, id: task.id + '::' + date, date, completed: (task.recurrenceCompleted ?? []).includes(date) });
+      const override = task.recurrenceOverrides?.[date];
+      results.push({ ...task, ...override, id: task.id + '::' + date, date: override?.date ?? date, completed: (task.recurrenceCompleted ?? []).includes(date) });
     }
     return results;
   });
-  const updateOccurrence = (id: string, input: Parameters<typeof taskStore.updateTask>[1]) => {
-    if (id.includes('::') && !window.confirm('Изменить всю серию повторяющихся задач?')) return;
-    taskStore.updateTask(id, input);
+  const updateOccurrence = (id: string, input: TaskInput) => {
+    if (id.includes('::')) setScopeDialog({ kind: 'edit', id, input });
+    else taskStore.updateTask(id, input);
   };
   const deleteOccurrence = (id: string) => {
-    if (id.includes('::') && !window.confirm('Удалить только это повторение? Остальные даты останутся.')) return;
-    taskStore.deleteTask(id);
+    if (id.includes('::')) setScopeDialog({ kind: 'delete', id });
+    else taskStore.deleteTask(id);
+  };
+  const chooseScope = (scope: RecurrenceScope) => {
+    if (!scopeDialog) return;
+    if (scopeDialog.kind === 'edit' && scopeDialog.input)
+      taskStore.updateRecurringTask?.(scopeDialog.id, scopeDialog.input, scope);
+    if (scopeDialog.kind === 'delete')
+      taskStore.deleteRecurringTask?.(scopeDialog.id, scope);
+    setScopeDialog(null);
   };
   const recurringActions = { ...taskStore, updateTask: updateOccurrence, deleteTask: deleteOccurrence };
 
@@ -117,6 +127,17 @@ export default function App() {
           <button type="button" className="update-banner-button" onClick={reloadUpdatedVersion}>
             Обновить Планер
           </button>
+        </div>
+      )}
+      {scopeDialog && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,.45)', display: 'grid', placeItems: 'center', padding: 18 }}>
+          <div role="dialog" aria-modal="true" aria-labelledby="recurrence-scope-title" style={{ width: 'min(100%, 420px)', background: '#fff', color: '#183b32', borderRadius: 22, padding: 24 }}>
+            <h2 id="recurrence-scope-title" style={{ fontSize: 21, marginBottom: 20 }}>{scopeDialog.kind === 'edit' ? 'Изменить повторяющуюся задачу' : 'Удалить повторяющуюся задачу'}</h2>
+            {([['single', 'Только эту задачу'], ['future', 'Эту и все последующие'], ['all', 'Все задачи серии']] as const).map(([scope, label]) => (
+              <button key={scope} type="button" onClick={() => chooseScope(scope)} style={{ display: 'block', width: '100%', padding: '15px 12px', marginBottom: 9, borderRadius: 13, border: '1px solid #c7d8d0', background: '#f3f8f5', color: '#183b32', fontSize: 16 }}>{label}</button>
+            ))}
+            <button type="button" onClick={() => setScopeDialog(null)} style={{ display: 'block', width: '100%', padding: 14, border: 'none', background: 'transparent', color: '#183b32', fontSize: 16 }}>Отмена</button>
+          </div>
         </div>
       )}
       <main>
