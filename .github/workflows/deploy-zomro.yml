@@ -1,0 +1,68 @@
+name: Deploy Planner to Zomro
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Deploy Planner to GitHub Pages"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: planner-zomro-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 20
+    steps:
+      - name: Configure verified SSH connection
+        env:
+          SSH_HOST: ${{ secrets.ZOMRO_SSH_HOST }}
+          SSH_USER: ${{ secrets.ZOMRO_SSH_USER }}
+          SSH_KEY: ${{ secrets.ZOMRO_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.ZOMRO_SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          for value in SSH_HOST SSH_USER SSH_KEY SSH_KNOWN_HOSTS; do
+            if [ -z "${!value}" ]; then echo "::error::Missing required secret: $value"; exit 1; fi
+          done
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+          printf 'Host zomro-planner\n  HostName %s\n  User %s\n  IdentityFile ~/.ssh/id_deploy\n  IdentitiesOnly yes\n  StrictHostKeyChecking yes\n  BatchMode yes\n' "$SSH_HOST" "$SSH_USER" > ~/.ssh/config
+          chmod 600 ~/.ssh/config
+
+      - name: Deploy only Planner from verified main commit
+        env:
+          DEPLOY_SHA: ${{ github.event_name == 'workflow_dispatch' && github.sha || github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          ssh zomro-planner "DEPLOY_SHA='$DEPLOY_SHA' bash -s" <<'REMOTE'
+          set -Eeuo pipefail
+          cd /opt/planer-source
+          test -d .git
+          test -f server/deploy_task_time_range.sh
+          git diff --quiet && git diff --cached --quiet || { echo "Planner source has uncommitted changes; aborting"; exit 1; }
+          git fetch --prune origin main
+          git merge-base --is-ancestor "$DEPLOY_SHA" origin/main || { echo "Commit is not in main; aborting"; exit 1; }
+          git checkout --detach "$DEPLOY_SHA"
+          if [ "$(id -u)" -eq 0 ]; then
+            bash server/deploy_task_time_range.sh
+          else
+            sudo -n bash server/deploy_task_time_range.sh
+          fi
+          echo "Planner deployed at $DEPLOY_SHA"
+          REMOTE
+
+      - name: Check public Planner health
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 3 --retry-delay 3 --max-time 15 https://planer.fizmat-course.com/api/health
