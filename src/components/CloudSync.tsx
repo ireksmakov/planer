@@ -11,6 +11,16 @@ type Snapshot = { version: number; tasks: Task[] };
 // Remember the last server-confirmed state separately from the editable local list.
 // On a quick app restart, local edits can exist even when their cloud request did not finish.
 const BASELINE_PREFIX = 'planer.cloud.confirmed.';
+const HISTORY_PREFIX = 'planer.cloud.history.';
+function saveTaskHistory(uid: string, tasks: Task[]) {
+  if (!tasks.length) return;
+  try {
+    const key = HISTORY_PREFIX + uid;
+    const previous = JSON.parse(localStorage.getItem(key) || '[]') as Array<{ at: number; tasks: Task[] }>;
+    if (previous[0] && JSON.stringify(previous[0].tasks) === JSON.stringify(tasks)) return;
+    localStorage.setItem(key, JSON.stringify([{ at: Date.now(), tasks }, ...previous].slice(0, 5)));
+  } catch { /* Never interrupt task editing if storage is unavailable. */ }
+}
 function rememberConfirmed(uid: string, data: Snapshot) {
   try { localStorage.setItem(BASELINE_PREFIX + uid, JSON.stringify(data)); } catch { /* Storage may be full. */ }
 }
@@ -67,6 +77,7 @@ export function CloudSync({ tasks, replaceAllTasks }: {
   const [identity, setIdentity] = useState<Identity | null>(null);
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
   const tasksRef = useRef(tasks);
   tasksRef.current = tasks;
   const cloudIds = useRef(new Set<string>());
@@ -130,6 +141,7 @@ export function CloudSync({ tasks, replaceAllTasks }: {
         if (legacyImport) localStorage.setItem('planer.cloud.backup.' + me.uid, JSON.stringify(local));
         localStorage.setItem(marker, 'yes');
         const recovered = reconcilePending(local, data.tasks, readConfirmed(me.uid));
+        saveTaskHistory(me.uid, local);
         // The baseline is always the actual server snapshot, not the recovered local edits.
         rememberConfirmed(me.uid, data);
         cloudIds.current = new Set(data.tasks.map(t => t.id));
@@ -166,6 +178,7 @@ export function CloudSync({ tasks, replaceAllTasks }: {
       const removed = [...cloudIds.current].filter(id => !currentIds.has(id));
       if (!modified && removed.length === 0) return;
       inflight.current = true;
+      setSaving(true);
       try {
         const data = modified
           ? await request<Snapshot>('/api/task', token, 'PUT', { task: modified, baseVersion: snapshot.version })
@@ -173,14 +186,14 @@ export function CloudSync({ tasks, replaceAllTasks }: {
             ? await request<Snapshot>('/api/delete', token, 'POST', { id: removed[0], baseVersion: snapshot.version })
             : await request<Snapshot>('/api/delete-batch', token, 'POST', { ids: removed, baseVersion: snapshot.version });
         setSnapshot(data);
-        if (identity?.uid) rememberConfirmed(identity.uid, data);
+        if (identity?.uid) { saveTaskHistory(identity.uid, now); rememberConfirmed(identity.uid, data); }
         cloudIds.current = new Set(data.tasks.map(t => t.id));
         previous.current = new Map(data.tasks.map(t => [t.id, JSON.stringify(t)]));
         setError('');
       } catch (e) {
         if (e instanceof ApiError && e.status === 401) expireSession(e.message);
         else { setConnected(false); setError(String(e)); }
-      } finally { inflight.current = false; }
+      } finally { inflight.current = false; setSaving(false); }
     }, 650);
     return () => window.clearTimeout(timer);
   }, [tasks, connected, snapshot, token, expireSession]);
@@ -207,6 +220,7 @@ export function CloudSync({ tasks, replaceAllTasks }: {
             current.some(task => previous.current.get(task.id) !== JSON.stringify(task));
           if (changed) return;
           applyingRemote.current = true;
+          if (identity?.uid) saveTaskHistory(identity.uid, current);
           setSnapshot(data);
           if (identity?.uid) rememberConfirmed(identity.uid, data);
           snapshotRef.current = data;
@@ -286,12 +300,19 @@ export function CloudSync({ tasks, replaceAllTasks }: {
     </section>
   );
 
+  const pendingChanges = tasks.length !== cloudIds.current.size ||
+    tasks.some(task => previous.current.get(task.id) !== JSON.stringify(task));
+  const syncStatus = error ? 'Ошибка синхронизации' :
+    saving ? 'Сохраняется…' :
+    pendingChanges ? 'Ожидает сохранения…' : 'Сохранено в облаке';
+
   return (
     <>
       <PlannerSignedInTools
         token={token}
         identity={identity}
-        taskCount={snapshot?.tasks.filter(task => task.category !== QURAN_TRACKER_CATEGORY).length ?? 0}
+        taskCount={tasks.filter(task => task.category !== QURAN_TRACKER_CATEGORY).length}
+        syncStatus={syncStatus}
         onLogout={() => { void signOut(); }}
         onLinked={refreshIdentity}
       />
