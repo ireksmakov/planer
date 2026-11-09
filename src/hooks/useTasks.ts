@@ -46,7 +46,8 @@ export function useTasks(): { tasks: Task[], replaceAllTasks: (tasks: Task[]) =>
   };
   const updateTask = (id: string, input: TaskInput) => {
     if (!input.title.trim()) return;
-    setTasks(old => old.map(t => t.id === id
+    const parentId = id.split('::')[0];
+    setTasks(old => old.map(t => t.id === parentId
       ? { ...t, ...input, title: input.title.trim(), category: input.category.trim() || 'Без категории' } : t));
   };
   const rescheduleTask = (id: string, date: string) => {
@@ -56,14 +57,28 @@ export function useTasks(): { tasks: Task[], replaceAllTasks: (tasks: Task[]) =>
     setTasks(old => old.map(t =>
       t.id === id && !t.completed && t.date < toDateKey(today()) ? { ...t, date } : t));
   };
-  const deleteTask = (id: string) => setTasks(old => old.filter(t => t.id !== id));
+  const deleteTask = (id: string) => {
+    const [parentId, occurrence] = id.split('::');
+    setTasks(old => occurrence ? old.map(t => t.id === parentId
+      ? { ...t, recurrenceSkipped: [...new Set([...(t.recurrenceSkipped ?? []), occurrence])] } : t)
+      : old.filter(t => t.id !== id));
+  };
   const deleteTasks = (ids: string[]) => {
     if (ids.length === 0) return;
     const toDelete = new Set(ids);
     // One React state update: the whole selected day's checklist disappears at once.
     setTasks(old => old.filter(task => !toDelete.has(task.id)));
   };
-  const toggleTask = (id: string) =>
-    setTasks(old => old.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
+  const toggleTask = (id: string) => {
+    const [parentId, occurrence] = id.split('::');
+    setTasks(old => old.map(t => {
+      if (t.id !== parentId) return t;
+      if (!occurrence) return { ...t, completed: !t.completed };
+      const completed = new Set(t.recurrenceCompleted ?? []);
+      if (completed.has(occurrence)) completed.delete(occurrence);
+      else completed.add(occurrence);
+      return { ...t, recurrenceCompleted: [...completed].sort() };
+    }));
+  };
   return { tasks, replaceAllTasks, addTask, updateTask, rescheduleTask, deleteTask, deleteTasks, toggleTask };
 }
