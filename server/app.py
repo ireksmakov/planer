@@ -80,6 +80,8 @@ class QuranReadingState(BaseModel):
 class Task(BaseModel):
     id: str = Field(min_length=1, max_length=100)
     title: str = Field(min_length=1, max_length=500)
+    description: str = Field(default="", max_length=3000)
+    color: Literal["default", "cherry", "coral", "orange", "yellow", "lime", "green", "mint", "teal", "blue", "indigo", "purple", "pink", "brown", "gray"] = "default"
     date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
     time: str = Field(max_length=5)  # task start, retained for older clients and reminders
     endTime: str = Field(default="", pattern=r"^$|^(?:[01]\d|2[0-3]):[0-5]\d$")
