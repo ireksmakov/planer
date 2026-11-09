@@ -1,5 +1,23 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import type { Task, TaskInput, TaskPriority, TaskRecurrence } from '../types';
+import type { Task, TaskInput, TaskPriority, TaskRecurrence, TaskColor } from '../types';
+
+const TASK_COLORS: { id: TaskColor; name: string; hex: string }[] = [
+  { id: 'default', name: 'По умолчанию', hex: '#2e6d61' },
+  { id: 'cherry', name: 'Радиккио', hex: '#a51f50' },
+  { id: 'coral', name: 'Цветущая вишня', hex: '#cf356b' },
+  { id: 'orange', name: 'Мандарин', hex: '#e45b2c' },
+  { id: 'yellow', name: 'Банан', hex: '#e4b73d' },
+  { id: 'lime', name: 'Авокадо', hex: '#b1c744' },
+  { id: 'green', name: 'Базилик', hex: '#35844e' },
+  { id: 'mint', name: 'Шалфей', hex: '#5ab483' },
+  { id: 'teal', name: 'Эвкалипт', hex: '#419b8f' },
+  { id: 'blue', name: 'Павлин', hex: '#4298dc' },
+  { id: 'indigo', name: 'Кобальт', hex: '#4e79e5' },
+  { id: 'purple', name: 'Аметист', hex: '#986ab3' },
+  { id: 'pink', name: 'Глициния', hex: '#b19bd8' },
+  { id: 'brown', name: 'Какао', hex: '#76584d' },
+  { id: 'gray', name: 'Графит', hex: '#666666' },
+];
 
 interface TaskFormProps {
   date: string;
@@ -11,6 +29,8 @@ interface TaskFormProps {
 
 export function TaskForm({ date, initial, compact = false, onSubmit, onCancel }: TaskFormProps) {
   const [title, setTitle] = useState(initial?.title ?? '');
+  const [description, setDescription] = useState(initial?.description ?? '');
+  const [color, setColor] = useState<TaskColor>(initial?.color ?? 'default');
   const [selectedDate, setSelectedDate] = useState(initial?.date ?? date);
   const [time, setTime] = useState(initial?.time ?? '');
   const [endTime, setEndTime] = useState(initial?.endTime ?? '');
@@ -25,6 +45,8 @@ export function TaskForm({ date, initial, compact = false, onSubmit, onCancel }:
 
   useEffect(() => {
     setTitle(initial?.title ?? '');
+    setDescription(initial?.description ?? '');
+    setColor(initial?.color ?? 'default');
     setSelectedDate(initial?.date ?? date);
     setTime(initial?.time ?? '');
     setEndTime(initial?.endTime ?? '');
@@ -63,6 +85,8 @@ export function TaskForm({ date, initial, compact = false, onSubmit, onCancel }:
     }
     onSubmit({
       title: title.trim(),
+      description: description.trim(),
+      color,
       date: selectedDate,
       time,
       endTime,
@@ -94,6 +118,29 @@ export function TaskForm({ date, initial, compact = false, onSubmit, onCancel }:
         />
       </label>
       {error && <span id="task-title-error" className="form-error" role="alert">Введите название задачи.</span>}
+      <label className="field" style={{ display: 'block', marginTop: 16 }}>
+        <span className="field-label">Описание</span>
+        <textarea value={description} onChange={(event) => setDescription(event.target.value)}
+          placeholder="Добавьте описание, заметки или детали задачи"
+          maxLength={3000} rows={4}
+          style={{ width: '100%', minHeight: 100, padding: 12, borderRadius: 10, border: '1px solid #c8d1cb', font: 'inherit', resize: 'vertical' }} />
+      </label>
+      <fieldset style={{ border: 0, padding: 0, margin: '18px 0' }}>
+        <legend className="field-label">Цвет блока задачи</legend>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 10 }}>
+          {TASK_COLORS.map((option) => (
+            <label key={option.id} title={option.name} style={{ cursor: 'pointer', position: 'relative' }}>
+              <input type="radio" name="task-color" value={option.id} checked={color === option.id}
+                onChange={() => setColor(option.id)} className="sr-only" aria-label={option.name} />
+              <span aria-hidden="true" style={{ display: 'grid', placeItems: 'center', width: 38, height: 38,
+                borderRadius: 11, background: option.hex, color: '#fff', fontWeight: 800,
+                outline: color === option.id ? '3px solid #233e35' : '2px solid transparent',
+                outlineOffset: 2 }}>{color === option.id ? '✓' : ''}</span>
+            </label>
+          ))}
+        </div>
+        <small style={{ display: 'block', marginTop: 10 }}>Выбран: {TASK_COLORS.find((option) => option.id === color)?.name}</small>
+      </fieldset>
       <div className="task-form-fields">
         <label className="field field-date">
           <span className="field-label">Дата</span>
