@@ -9,7 +9,7 @@ class ReminderScheduleTests(unittest.TestCase):
     def setUp(self):
         self.task = {
             "date": "2026-11-02", "time": "19:21",
-            "completed": False, "repeatReminder": True,
+            "completed": False, "repeatReminder": True, "reminderMinutes": 15,
         }
 
     def check(self, clock, expected, repeat=True, completed=False):
@@ -52,6 +52,24 @@ class ReminderScheduleTests(unittest.TestCase):
         self.assertIsNone(due_reminder_stage(task, datetime(2026, 11, 3, 0, 2)))
         self.assertEqual(due_reminder_stage(task, datetime(2026, 11, 3, 0, 58)), 60)
         self.assertEqual(due_reminder_stage(task, datetime(2026, 11, 3, 0, 59)), 60)
+
+    def test_default_thirty_minute_advance_reminder(self):
+        task = dict(self.task)
+        task.pop("reminderMinutes")
+        self.assertEqual(due_reminder_stage(task, datetime(2026, 11, 2, 18, 51)), -30)
+        self.assertEqual(telegram_reminder_stage(task, datetime(2026, 11, 2, 18, 52)), -30)
+        self.assertIsNone(due_reminder_stage(task, datetime(2026, 11, 2, 18, 53)))
+        self.assertEqual(due_reminder_stage(task, datetime(2026, 11, 2, 19, 21)), 0)
+
+    def test_thirty_minute_advance_across_midnight(self):
+        task = dict(self.task, date="2026-11-03", time="00:10", reminderMinutes=30)
+        self.assertEqual(due_reminder_stage(task, datetime(2026, 11, 2, 23, 40)), -30)
+        self.assertEqual(telegram_reminder_stage(task, datetime(2026, 11, 2, 23, 41)), -30)
+
+    def test_no_advance_reminder_when_disabled(self):
+        task = dict(self.task, reminderMinutes=-1)
+        self.assertIsNone(due_reminder_stage(task, datetime(2026, 11, 2, 18, 51)))
+        self.assertEqual(due_reminder_stage(task, datetime(2026, 11, 2, 19, 21)), 0)
 
     def test_telegram_fifteen_minute_warning(self):
         task = dict(self.task)
