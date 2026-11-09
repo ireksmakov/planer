@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { Task, TaskActions, TaskInput } from '../types';
+import type { Task, TaskActions, TaskInput, RecurrenceScope } from '../types';
 import { fromDateKey, toDateKey, today } from '../utils/date';
 
 export const STORAGE_KEY = 'planer.editorial.tasks.v1';
@@ -50,6 +50,51 @@ export function useTasks(): { tasks: Task[], replaceAllTasks: (tasks: Task[]) =>
     setTasks(old => old.map(t => t.id === parentId
       ? { ...t, ...input, title: input.title.trim(), category: input.category.trim() || 'Без категории' } : t));
   };
+  const updateRecurringTask = (id: string, input: TaskInput, scope: RecurrenceScope) => {
+    const [parentId, occurrence] = id.split('::');
+    if (!occurrence) { updateTask(id, input); return; }
+    setTasks(old => old.flatMap(task => {
+      if (task.id !== parentId) return [task];
+      if (scope === 'single') {
+        return [{ ...task, recurrenceOverrides: {
+          ...task.recurrenceOverrides, [occurrence]: { ...input, date: input.date },
+        } }];
+      }
+      if (scope === 'all') {
+        return [{ ...task, ...input, date: task.date }];
+      }
+      // Split the series at the chosen occurrence. Old completions remain on
+      // the original series; future completions move to the new series.
+      const oldCompleted = (task.recurrenceCompleted ?? []).filter(d => d < occurrence);
+      const futureCompleted = (task.recurrenceCompleted ?? []).filter(d => d >= occurrence);
+      const oldSkipped = (task.recurrenceSkipped ?? []).filter(d => d < occurrence);
+      const futureSkipped = (task.recurrenceSkipped ?? []).filter(d => d >= occurrence);
+      const entries = Object.entries(task.recurrenceOverrides ?? {});
+      const oldOverrides = Object.fromEntries(entries.filter(([d]) => d < occurrence));
+      const futureOverrides = Object.fromEntries(entries.filter(([d]) => d >= occurrence));
+      const successor: Task = {
+        ...task, ...input, id: makeId(), date: input.date,
+        createdAt: Date.now(), completed: false,
+        recurrenceCompleted: futureCompleted, recurrenceSkipped: futureSkipped,
+        recurrenceOverrides: futureOverrides,
+      };
+      return [{ ...task, recurrenceUntil: occurrence, recurrenceCompleted: oldCompleted,
+        recurrenceSkipped: oldSkipped, recurrenceOverrides: oldOverrides }, successor];
+    }));
+  };
+
+  const deleteRecurringTask = (id: string, scope: RecurrenceScope) => {
+    const [parentId, occurrence] = id.split('::');
+    if (!occurrence) { deleteTask(id); return; }
+    setTasks(old => old.flatMap(task => {
+      if (task.id !== parentId) return [task];
+      if (scope === 'all') return [];
+      if (scope === 'single') return [{ ...task, recurrenceSkipped:
+        [...new Set([...(task.recurrenceSkipped ?? []), occurrence])] }];
+      if (occurrence <= task.date) return [];
+      return [{ ...task, recurrenceUntil: occurrence }];
+    }));
+  };
   const rescheduleTask = (id: string, date: string) => {
     const parsed = fromDateKey(date);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(parsed.getTime()) ||
@@ -80,5 +125,5 @@ export function useTasks(): { tasks: Task[], replaceAllTasks: (tasks: Task[]) =>
       return { ...t, recurrenceCompleted: [...completed].sort() };
     }));
   };
-  return { tasks, replaceAllTasks, addTask, updateTask, rescheduleTask, deleteTask, deleteTasks, toggleTask };
+  return { tasks, replaceAllTasks, addTask, updateTask, rescheduleTask, deleteTask, deleteTasks, toggleTask, updateRecurringTask, deleteRecurringTask };
 }
