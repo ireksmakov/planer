@@ -69,8 +69,8 @@ async function request<T>(endpoint: string, token: string, method = 'GET', body?
   return response.json() as Promise<T>;
 }
 
-export function CloudSync({ tasks, replaceAllTasks }: {
-  tasks: Task[]; replaceAllTasks: (tasks: Task[]) => void;
+export function CloudSync({ tasks, replaceAllTasks, onRefresh }: {
+  tasks: Task[]; replaceAllTasks: (tasks: Task[]) => void; onRefresh: () => void;
 }) {
   const [token, setToken] = useState(() => localStorage.getItem(SESSION_KEY) || sessionStorage.getItem(OLD_TOKEN_KEY) || '');
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
@@ -78,8 +78,6 @@ export function CloudSync({ tasks, replaceAllTasks }: {
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(false);
-  const [historyRevision, setHistoryRevision] = useState(0);
   const tasksRef = useRef(tasks);
   tasksRef.current = tasks;
   const cloudIds = useRef(new Set<string>());
@@ -307,30 +305,6 @@ export function CloudSync({ tasks, replaceAllTasks }: {
     </section>
   );
 
-  const history = (() => {
-    if (!identity?.uid) return [] as Array<{ at: number; tasks: Task[] }>;
-    try {
-      const value: unknown = JSON.parse(localStorage.getItem(HISTORY_PREFIX + identity.uid) || '[]');
-      return Array.isArray(value) ? value.filter((item): item is { at: number; tasks: Task[] } =>
-        item && typeof item.at === 'number' && Array.isArray(item.tasks)) : [];
-    } catch { return [] as Array<{ at: number; tasks: Task[] }>; }
-  })();
-  void historyRevision;
-  const restoreFromHistory = (at: number) => {
-    const revision = history.find(item => item.at === at);
-    if (!revision) return;
-    const existing = new Set(tasksRef.current.map(task => task.id));
-    const missing = revision.tasks.filter(task => !existing.has(task.id) &&
-      typeof task.id === 'string' && typeof task.title === 'string' &&
-      typeof task.date === 'string' && typeof task.time === 'string' &&
-      typeof task.createdAt === 'number' && typeof task.completed === 'boolean' &&
-      ['low', 'medium', 'high'].includes(task.priority));
-    if (!missing.length) return;
-    if (!window.confirm(`Восстановить ${missing.length} задач из копии? Текущие задачи останутся без изменений.`)) return;
-    saveTaskHistory(identity!.uid, tasksRef.current);
-    replaceAllTasks([...tasksRef.current, ...missing]);
-    setHistoryRevision(value => value + 1);
-  };
   const pendingChanges = tasks.length !== cloudIds.current.size ||
     tasks.some(task => previous.current.get(task.id) !== JSON.stringify(task));
   const syncStatus = error ? 'Ошибка синхронизации' :
@@ -346,28 +320,8 @@ export function CloudSync({ tasks, replaceAllTasks }: {
         syncStatus={syncStatus}
         onLogout={() => { void signOut(); }}
         onLinked={refreshIdentity}
+        onRefresh={onRefresh}
       />
-      <div className="planner-sync-recovery">
-        <button type="button" onClick={() => setHistoryOpen(open => !open)}
-          aria-expanded={historyOpen}>История и восстановление задач</button>
-        {historyOpen && (
-          <div className="planner-account-panel">
-            <p>Локальные копии на этом устройстве. Восстановление только добавляет отсутствующие задачи.</p>
-            {history.length === 0 && <p>Сохранённых копий пока нет.</p>}
-            {history.map(revision => {
-              const existing = new Set(tasks.map(task => task.id));
-              const missing = revision.tasks.filter(task => !existing.has(task.id));
-              return (
-                <div key={revision.at}>
-                  <span>{new Date(revision.at).toLocaleString('ru-RU')} · {revision.tasks.length} задач · отсутствует {missing.length}</span>
-                  <button type="button" disabled={missing.length === 0}
-                    onClick={() => restoreFromHistory(revision.at)}>Восстановить отсутствующие</button>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
       {error && <div role="alert" className="planner-sync-error">{error}</div>}
     </>
   );
