@@ -7,6 +7,32 @@ import { PlannerSignedInTools } from './PlannerSignedInTools';
 import { QURAN_TRACKER_CATEGORY } from '../utils/quranReading';
 
 type Snapshot = { version: number; tasks: Task[] };
+
+// Remember the last server-confirmed state separately from the editable local list.
+// On a quick app restart, local edits can exist even when their cloud request did not finish.
+const BASELINE_PREFIX = 'planer.cloud.confirmed.';
+function rememberConfirmed(uid: string, data: Snapshot) {
+  try { localStorage.setItem(BASELINE_PREFIX + uid, JSON.stringify(data)); } catch { /* Storage may be full. */ }
+}
+function reconcilePending(local: Task[], remote: Task[], confirmed: Snapshot | null): Task[] {
+  if (!confirmed) return remote;
+  const old = new Map(confirmed.tasks.map(task => [task.id, JSON.stringify(task)]));
+  const localIds = new Set(local.map(task => task.id));
+  const merged = new Map(remote.map(task => [task.id, task]));
+  // Only propagate deletions that happened locally after the last confirmation.
+  for (const id of old.keys()) if (!localIds.has(id)) merged.delete(id);
+  // Keep newly created and modified tasks, without resurrecting unchanged old tasks.
+  for (const task of local) {
+    if (old.get(task.id) !== JSON.stringify(task)) merged.set(task.id, task);
+  }
+  return [...merged.values()];
+}
+function readConfirmed(uid: string): Snapshot | null {
+  try {
+    const value = JSON.parse(localStorage.getItem(BASELINE_PREFIX + uid) || 'null') as Snapshot | null;
+    return value && Array.isArray(value.tasks) && typeof value.version === 'number' ? value : null;
+  } catch { return null; }
+}
 type Identity = { uid: string; provider: 'google' | 'telegram'; telegramLinked: boolean; telegramNotifications: boolean };
 // Google OAuth remains accepted by the API for previously authenticated users,
 // but new sign-ins are available only through Telegram.
@@ -103,12 +129,15 @@ export function CloudSync({ tasks, replaceAllTasks }: {
         if (cancelled) return;
         if (legacyImport) localStorage.setItem('planer.cloud.backup.' + me.uid, JSON.stringify(local));
         localStorage.setItem(marker, 'yes');
+        const recovered = reconcilePending(local, data.tasks, readConfirmed(me.uid));
+        // The baseline is always the actual server snapshot, not the recovered local edits.
+        rememberConfirmed(me.uid, data);
         cloudIds.current = new Set(data.tasks.map(t => t.id));
         previous.current = new Map(data.tasks.map(t => [t.id, JSON.stringify(t)]));
         snapshotRef.current = data;
         setSnapshot(data);
         setIdentity(me);
-        replaceAllTasks(data.tasks);
+        replaceAllTasks(recovered);
         setConnected(true);
         setError('');
       } catch (e) {
@@ -144,6 +173,7 @@ export function CloudSync({ tasks, replaceAllTasks }: {
             ? await request<Snapshot>('/api/delete', token, 'POST', { id: removed[0], baseVersion: snapshot.version })
             : await request<Snapshot>('/api/delete-batch', token, 'POST', { ids: removed, baseVersion: snapshot.version });
         setSnapshot(data);
+        if (identity?.uid) rememberConfirmed(identity.uid, data);
         cloudIds.current = new Set(data.tasks.map(t => t.id));
         previous.current = new Map(data.tasks.map(t => [t.id, JSON.stringify(t)]));
         setError('');
@@ -178,6 +208,7 @@ export function CloudSync({ tasks, replaceAllTasks }: {
           if (changed) return;
           applyingRemote.current = true;
           setSnapshot(data);
+          if (identity?.uid) rememberConfirmed(identity.uid, data);
           snapshotRef.current = data;
           cloudIds.current = new Set(data.tasks.map(t => t.id));
           previous.current = new Map(data.tasks.map(t => [t.id, JSON.stringify(t)]));
