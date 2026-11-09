@@ -1,0 +1,59 @@
+name: Deploy Planner to Zomro
+
+on:
+  workflow_run:
+    workflows: ["Deploy Planner to GitHub Pages"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: planer-zomro-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    environment: zomro-production
+    timeout-minutes: 15
+    steps:
+      - name: Validate required SSH configuration
+        env:
+          HOST: ${{ secrets.ZOMRO_SSH_HOST }}
+          USER: ${{ secrets.ZOMRO_SSH_USER }}
+          KEY: ${{ secrets.ZOMRO_SSH_KEY }}
+        run: |
+          test -n "$HOST" && test -n "$USER" && test -n "$KEY" || { echo "Missing Zomro SSH secret"; exit 1; }
+      - name: Configure SSH
+        env:
+          HOST: ${{ secrets.ZOMRO_SSH_HOST }}
+          KEY: ${{ secrets.ZOMRO_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/id_zomro
+          chmod 600 ~/.ssh/id_zomro
+          ssh-keyscan -T 10 -H "$HOST" > ~/.ssh/known_hosts
+          test -s ~/.ssh/known_hosts
+      - name: Update Planner only
+        env:
+          HOST: ${{ secrets.ZOMRO_SSH_HOST }}
+          USER: ${{ secrets.ZOMRO_SSH_USER }}
+        run: |
+          ssh -i ~/.ssh/id_zomro -o BatchMode=yes -o ConnectTimeout=15 "$USER@$HOST" 'bash -se' <<'REMOTE'
+          set -Eeuo pipefail
+          test "$(id -u)" -eq 0 || { echo "Planner deployment requires root SSH user"; exit 1; }
+          cd /opt/planer-source
+          test -d .git
+          test -z "$(git status --porcelain)" || { echo "Uncommitted server changes; deployment stopped"; exit 1; }
+          git fetch origin main
+          git checkout main
+          git merge --ff-only origin/main
+          bash server/deploy_quran_reading.sh
+          REMOTE
+      - name: Verify public Planner health
+        run: curl -fsS --retry 3 --retry-delay 3 --max-time 15 https://planer.fizmat-course.com/api/health
