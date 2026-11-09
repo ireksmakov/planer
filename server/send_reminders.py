@@ -85,16 +85,7 @@ def due_reminder_stage(task, local_now):
 
 
 def telegram_reminder_stage(task, local_now):
-    """User-selected advance reminder, followed by the normal start and repeat stages."""
-    if task.get("completed"):
-        return None
-    scheduled = str(task.get("date", "")) + " " + str(task.get("time", ""))
-    minutes = task.get("reminderMinutes", 30)
-    if isinstance(minutes, int) and minutes in (-1, 0, 5, 10, 15, 30, 60, 1440) and minutes > 0:
-        for grace in (0, 1):
-            ahead = local_now + timedelta(minutes=minutes - grace)
-            if scheduled == ahead.strftime("%Y-%m-%d %H:%M"):
-                return -minutes
+    """Use the same reminder schedule for Telegram and Web Push."""
     return due_reminder_stage(task, local_now)
 
 
