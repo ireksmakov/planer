@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import type { Task, TaskInput, TaskPriority } from '../types';
+import type { Task, TaskInput, TaskPriority, TaskRecurrence } from '../types';
 
 interface TaskFormProps {
   date: string;
@@ -17,6 +17,7 @@ export function TaskForm({ date, initial, compact = false, onSubmit, onCancel }:
   const [timeError, setTimeError] = useState('');
   const [priority, setPriority] = useState<TaskPriority>(initial?.priority ?? 'medium');
   const [category, setCategory] = useState(initial?.category ?? 'Личное');
+  const [recurrence, setRecurrence] = useState<TaskRecurrence>(initial?.recurrence ?? 'none');
   const [repeatReminder, setRepeatReminder] = useState(initial?.repeatReminder ?? false);
   const [error, setError] = useState(false);
   const [dateError, setDateError] = useState(false);
@@ -30,6 +31,7 @@ export function TaskForm({ date, initial, compact = false, onSubmit, onCancel }:
     setPriority(initial?.priority ?? 'medium');
     setCategory(initial?.category ?? 'Личное');
     setRepeatReminder(initial?.repeatReminder ?? false);
+    setRecurrence(initial?.recurrence ?? 'none');
     setError(false);
     setDateError(false);
   }, [date, initial]);
@@ -65,6 +67,7 @@ export function TaskForm({ date, initial, compact = false, onSubmit, onCancel }:
       priority,
       category: category.trim() || 'Без категории',
       repeatReminder: Boolean(time && repeatReminder),
+      recurrence,
       subgoals: initial?.subgoals,
     });
   }
@@ -120,6 +123,16 @@ export function TaskForm({ date, initial, compact = false, onSubmit, onCancel }:
           </datalist>
         </label>
       </div>
+      <label className="field" style={{ display: 'block', marginTop: 18, marginBottom: 18 }}>
+        <span className="field-label">Повторение задачи</span>
+        <select value={recurrence} onChange={(event) => setRecurrence(event.target.value as TaskRecurrence)} style={{ width: '100%', minHeight: 48 }}>
+          <option value="none">Не повторяется</option>
+          <option value="daily">Каждый день</option>
+          <option value="weekly">Каждую неделю</option>
+          <option value="monthly">Каждый месяц</option>
+        </select>
+        {recurrence !== 'none' && <small style={{ display: 'block', marginTop: 8 }}>Повторение с выбранной даты; выполнение каждой даты учитывается отдельно.</small>}
+      </label>
       <label className="reminder-repeat-option">
         <input type="checkbox" checked={repeatReminder && Boolean(time)} disabled={!time} onChange={(event) => setRepeatReminder(event.target.checked)} />
         <span><strong>🔔 Настойчивое напоминание</strong><small>{time ? (endTime ? 'Повтор 1/2 — через 2 минуты после начала, 2/2 — в конце задачи' : 'Повтор 1/2 — через 2 минуты, 2/2 — через 1 час после начала; чтобы получать 2/2 в конце задачи, укажите «Конец»') : 'Сначала укажите время начала'}</small></span>
