@@ -87,6 +87,7 @@ class Task(BaseModel):
     category: str = Field(max_length=100)
     completed: bool
     createdAt: int
+    reminderMinutes: int = Field(default=30, ge=-1, le=1440)
     repeatReminder: bool = False
     subgoals: list[str] = Field(default_factory=list, max_length=30)
     quranReading: QuranReadingState | None = None
