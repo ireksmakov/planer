@@ -1,7 +1,7 @@
 export type ViewMode = 'day' | 'week' | 'month' | 'ramadan';
 export type TaskPriority = 'low' | 'medium' | 'high';
 export type RecurrenceScope = 'single' | 'future' | 'all';
-export type TaskRecurrence = 'none' | 'daily' | 'weekly' | 'monthly';
+export type TaskRecurrence = 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
 
 export type QuranReadingPace = 30 | 15 | 12 | 10 | 6;
 export type QuranReadingState = {
