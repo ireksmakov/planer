@@ -12,6 +12,7 @@ type Props = {
   token: string;
   identity: Identity | null;
   taskCount: number;
+  syncStatus: string;
   onLogout: () => void;
   onLinked: () => void;
 };
@@ -19,7 +20,7 @@ type Props = {
 /** Compact controls above the planner's goals and task lists.
  * Keeps personal account actions out of the main task content.
  */
-export function PlannerSignedInTools({ token, identity, taskCount, onLogout, onLinked }: Props) {
+export function PlannerSignedInTools({ token, identity, taskCount, syncStatus, onLogout, onLinked }: Props) {
   return (
     <section className="planner-utility-bar" aria-label="Настройки уведомлений и аккаунта">
       <PushNotifications token={token} compact />
@@ -31,7 +32,7 @@ export function PlannerSignedInTools({ token, identity, taskCount, onLogout, onL
         </summary>
         <div className="planner-account-panel">
           <p className="planner-account-title">Личный аккаунт</p>
-          <p className="planner-account-row"><span className="planner-account-status" aria-hidden="true" /> Сохранено в облаке · {taskCount} задач</p>
+          <p className="planner-account-row"><span className="planner-account-status" aria-hidden="true" /> {syncStatus} · {taskCount} задач</p>
           <p className="planner-account-row">
             {identity?.provider === 'telegram' || identity?.telegramLinked
               ? '✈ Telegram подключён'
