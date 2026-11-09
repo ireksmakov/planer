@@ -1,0 +1,67 @@
+name: Deploy Planner frontend to Zomro VPS
+
+on:
+  workflow_run:
+    workflows: ["Deploy Planner to GitHub Pages"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: zomro-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main') }}
+    runs-on: ubuntu-latest
+    environment: zomro-production
+    steps:
+      - name: Validate configured deployment credentials
+        env:
+          SSH_HOST: ${{ secrets.ZOMRO_SSH_HOST }}
+          SSH_USER: ${{ secrets.ZOMRO_SSH_USER }}
+          SSH_KEY: ${{ secrets.ZOMRO_SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.ZOMRO_SSH_KNOWN_HOSTS }}
+        run: |
+          test -n "$SSH_HOST" && test -n "$SSH_USER" && test -n "$SSH_KEY" && test -n "$SSH_KNOWN_HOSTS" || {
+            echo "::error::Configure all four ZOMRO_SSH_* secrets in the zomro-production environment."
+            exit 1
+          }
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+      - name: Deploy frontend only; preserve API and database
+        env:
+          SSH_HOST: ${{ secrets.ZOMRO_SSH_HOST }}
+          SSH_USER: ${{ secrets.ZOMRO_SSH_USER }}
+        run: |
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 "$SSH_USER@$SSH_HOST" 'bash -se' <<'REMOTE'
+          set -euo pipefail
+          cd /opt/planer-source
+          git fetch origin main
+          git checkout main
+          git merge --ff-only origin/main
+          npm run build -- --base=/
+          test -s dist/index.html
+          mkdir -p /opt/planer-backups
+          tar -czf "/opt/planer-backups/site-$(date +%Y%m%d-%H%M%S).tar.gz" -C /var/www/planer .
+          printf '{"version":"%s"}\n' "$(git rev-parse HEAD)" > dist/version.json
+          cp -a dist/. /var/www/planer/
+          test "$(python3 -c 'import json; print(json.load(open("/var/www/planer/version.json"))["version"])')" = "$(git rev-parse HEAD)"
+          REMOTE
+      - name: Verify public website and API
+        run: |
+          python3 - <<'PY'
+          import json, urllib.request
+          base = 'https://planer.fizmat-course.com'
+          with urllib.request.urlopen(base + '/version.json', timeout=20) as r:
+              version = json.load(r)['version']
+          with urllib.request.urlopen(base + '/api/health', timeout=20) as r:
+              assert json.load(r)['ok'] is True
+          print('Published frontend version:', version)
+          PY
