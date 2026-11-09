@@ -121,7 +121,7 @@ export default function App() {
   return (
     <div className="app-shell">
       <Header view={view} onChangeView={changeView} />
-      <CloudSync tasks={taskStore.tasks} replaceAllTasks={taskStore.replaceAllTasks} />
+      <CloudSync tasks={taskStore.tasks} replaceAllTasks={taskStore.replaceAllTasks} onRefresh={reloadUpdatedVersion} />
       {updateAvailable && (
         <div className="update-banner" role="status">
           <span>Вышла новая версия Планера. Ваши задачи сохранятся.</span>

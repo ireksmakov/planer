@@ -15,15 +15,19 @@ type Props = {
   syncStatus: string;
   onLogout: () => void;
   onLinked: () => void;
+  onRefresh: () => void;
 };
 
 /** Compact controls above the planner's goals and task lists.
  * Keeps personal account actions out of the main task content.
  */
-export function PlannerSignedInTools({ token, identity, taskCount, syncStatus, onLogout, onLinked }: Props) {
+export function PlannerSignedInTools({ token, identity, taskCount, syncStatus, onLogout, onLinked, onRefresh }: Props) {
   return (
     <section className="planner-utility-bar" aria-label="Настройки уведомлений и аккаунта">
       <PushNotifications token={token} compact />
+      <button type="button" className="planner-utility-button" onClick={onRefresh} aria-label="Обновить Планер" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'pointer' }}>
+        <span aria-hidden="true">🔄</span><span>Обновить</span>
+      </button>
       <details className="planner-account-menu">
         <summary className="planner-utility-button" aria-label="Открыть настройки аккаунта">
           <span aria-hidden="true">👤</span>
