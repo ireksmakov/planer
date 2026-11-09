@@ -123,13 +123,14 @@ export function TaskForm({ date, initial, compact = false, onSubmit, onCancel }:
           </datalist>
         </label>
       </div>
-      <label className="field" style={{ display: 'block', marginTop: 18, marginBottom: 18 }}>
-        <span className="field-label">Повторение задачи</span>
+      <label className="field" style={{ display: 'block', marginTop: 18, marginBottom: 18, padding: 14, border: '1px solid #b5cdbf', borderRadius: 12, background: '#edf5ee' }}>
+        <span className="field-label">🔁 Повторять</span>
         <select value={recurrence} onChange={(event) => setRecurrence(event.target.value as TaskRecurrence)} style={{ width: '100%', minHeight: 48 }}>
           <option value="none">Не повторяется</option>
           <option value="daily">Каждый день</option>
           <option value="weekly">Каждую неделю</option>
           <option value="monthly">Каждый месяц</option>
+          <option value="yearly">Каждый год</option>
         </select>
         {recurrence !== 'none' && <small style={{ display: 'block', marginTop: 8 }}>Повторение с выбранной даты; выполнение каждой даты учитывается отдельно.</small>}
       </label>
