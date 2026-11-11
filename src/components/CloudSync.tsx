@@ -196,8 +196,30 @@ export function CloudSync({ tasks, replaceAllTasks, onRefresh }: {
         previous.current = new Map(data.tasks.map(t => [t.id, JSON.stringify(t)]));
         setError('');
       } catch (e) {
-        if (e instanceof ApiError && e.status === 401) expireSession(e.message);
-        else { setConnected(false); setError(String(e)); }
+        if (e instanceof ApiError && e.status === 401) {
+          expireSession(e.message);
+        } else if (e instanceof ApiError && e.status === 409) {
+          // Another device saved first. Rebase only local edits on the latest server
+          // snapshot; never overwrite unrelated remote changes or discard pending edits.
+          try {
+            const latest = await request<Snapshot>('/api/tasks', token);
+            const pending = reconcilePending(tasksRef.current, latest.tasks, snapshotRef.current);
+            if (identity?.uid) {
+              saveTaskHistory(identity.uid, tasksRef.current);
+              rememberConfirmed(identity.uid, latest);
+            }
+            snapshotRef.current = latest;
+            cloudIds.current = new Set(latest.tasks.map(t => t.id));
+            previous.current = new Map(latest.tasks.map(t => [t.id, JSON.stringify(t)]));
+            setSnapshot(latest);
+            replaceAllTasks(pending);
+            setError('');
+          } catch (refreshError) {
+            setError('Не удалось согласовать изменения: ' + String(refreshError));
+          }
+        } else {
+          setError(String(e));
+        }
       } finally { inflight.current = false; setSaving(false); }
     }, 650);
     return () => window.clearTimeout(timer);
