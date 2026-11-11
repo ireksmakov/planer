@@ -2087,3 +2087,44 @@ body { background-color: var(--paper); }
 @media(prefers-reduced-motion:reduce) {
   .quran-mushaf-page { scroll-behavior:auto; }
 }
+
+/* Equal-width, non-overlapping utility controls across mobile and desktop. */
+.planner-utility-bar {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(7px, 1.5vw, 14px);
+  align-items: stretch;
+}
+.planner-utility-bar > .planner-bell-menu,
+.planner-utility-bar > .planner-account-menu,
+.planner-utility-bar > .planner-utility-button { width: 100%; min-width: 0; margin: 0; }
+.planner-utility-bar .planner-utility-button {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  padding: 10px 6px;
+  gap: clamp(3px, 0.8vw, 9px);
+  border: 1px solid #b5c8b7;
+  border-radius: 15px;
+  background: linear-gradient(145deg, #ffffff 0%, #edf5eb 52%, #e0eadc 100%);
+  box-shadow: 0 2px 8px rgba(20, 65, 45, .07), inset 0 1px 0 rgba(255,255,255,.8);
+  color: #174a37;
+  font-size: clamp(11px, 2.7vw, 14px);
+  font-weight: 750;
+  white-space: nowrap;
+}
+.planner-utility-bar .planner-utility-button:hover,
+.planner-utility-bar .planner-account-menu[open] > summary,
+.planner-utility-bar .planner-utility-button[aria-expanded="true"] {
+  background: linear-gradient(145deg, #f9f8ee 0%, #e7efdc 60%, #d3e3d2 100%);
+  border-color: #a58a55;
+}
+.planner-utility-bar .planner-bell-icon { font-size: 17px; }
+.planner-utility-bar .planner-account-chevron { font-size: 13px; }
+.planner-utility-bar .planner-bell-enabled { width: 6px; height: 6px; }
+@media (max-width: 390px) {
+  .planner-utility-bar { gap: 6px; }
+  .planner-utility-bar .planner-utility-button { font-size: 11px; padding-inline: 3px; gap: 3px; }
+  .planner-utility-bar .planner-bell-icon { font-size: 15px; }
+}
