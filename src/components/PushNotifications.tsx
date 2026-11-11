@@ -123,10 +123,10 @@ export function PushNotifications({ token, compact = false }: { token: string; c
     return <div className="planner-bell-menu">
       <button type="button" className="planner-utility-button"
         aria-expanded={menuOpen} aria-controls="planner-push-options"
-        aria-label={state === 'enabled' ? 'Уведомления на устройстве включены. Настроить' : 'Настроить уведомления'}
+        aria-label={state === 'enabled' ? 'Звуки: уведомления включены. Настроить' : 'Звуки: настроить уведомления'}
         onClick={() => setMenuOpen(value => !value)}>
         <span className="planner-bell-icon" aria-hidden="true">🔔</span>
-        <span>Уведомления</span>
+        <span>Звуки</span>
         {state === 'enabled' && <span className="planner-bell-enabled" aria-hidden="true" />}
       </button>
       {menuOpen && (
