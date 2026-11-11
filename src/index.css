@@ -2128,3 +2128,22 @@ body { background-color: var(--paper); }
   .planner-utility-bar .planner-utility-button { font-size: 11px; padding-inline: 3px; gap: 3px; }
   .planner-utility-bar .planner-bell-icon { font-size: 15px; }
 }
+
+/* Rich emerald-and-champagne gradient for the selected date card. */
+.planner-selected-date {
+  background: linear-gradient(125deg, #fffdf7 0%, #f3f0df 38%, #e5eee3 76%, #d8e8dc 100%);
+  border: 1px solid #c9b58d;
+  border-left: 5px solid #ad874b;
+  box-shadow: 0 8px 24px rgba(21, 65, 47, .08), inset 0 1px 0 rgba(255,255,255,.85);
+  overflow: hidden;
+}
+.planner-selected-date-number {
+  background: linear-gradient(180deg, #aa8246, #c9a565);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+@media (max-width: 420px) {
+  .planner-selected-date { padding: 15px 13px; gap: 10px; }
+  .planner-selected-date-number { flex-basis: 58px; font-size: 46px; }
+}
