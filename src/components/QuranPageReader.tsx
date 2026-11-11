@@ -52,10 +52,6 @@ export function QuranPageReader({
   const touchStart = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
-    top.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, [page]);
-
-  useEffect(() => {
     const cached = cache.current.get(page);
     if (cached) {
       setData(cached);
