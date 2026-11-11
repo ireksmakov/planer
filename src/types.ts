@@ -1,4 +1,4 @@
-export type ViewMode = 'day' | 'week' | 'month' | 'ramadan' | 'health';
+export type ViewMode = 'day' | 'week' | 'month' | 'year' | 'ramadan' | 'health';
 export type TaskColor = 'default' | 'cherry' | 'coral' | 'orange' | 'yellow' | 'lime' | 'green' | 'mint' | 'teal' | 'blue' | 'indigo' | 'purple' | 'pink' | 'brown' | 'gray';
 export type TaskPriority = 'low' | 'medium' | 'high';
 export type RecurrenceScope = 'single' | 'future' | 'all';
