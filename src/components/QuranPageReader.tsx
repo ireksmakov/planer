@@ -47,7 +47,6 @@ export function QuranPageReader({
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [retryKey, setRetryKey] = useState(0);
-  const [bookmarkSaved, setBookmarkSaved] = useState(false);
   const cache = useRef(new Map<number, QuranPage>());
   const top = useRef<HTMLDivElement>(null);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
@@ -57,7 +56,6 @@ export function QuranPageReader({
   }, [page]);
 
   useEffect(() => {
-    setBookmarkSaved(false);
     const cached = cache.current.get(page);
     if (cached) {
       setData(cached);
@@ -171,8 +169,8 @@ export function QuranPageReader({
         <button type="button" className="quran-reader-prev" disabled={page <= firstPage} onClick={onBack}>
           ← Назад
         </button>
-        <button type="button" className="quran-reader-bookmark" onClick={() => { onBookmark(); setBookmarkSaved(true); }}>
-          🔖 {bookmarkSaved || isBookmarked ? 'Закладка сохранена' : 'Поставить закладку'}
+        <button type="button" className="quran-reader-bookmark" aria-pressed={isBookmarked} onClick={onBookmark}>
+          🔖 {isBookmarked ? 'Убрать закладку' : 'Поставить закладку'}
         </button>
         <button type="button" className="quran-reader-next" disabled={!displayed} onClick={onReadPage}>
           {page >= lastPage ? '✓ Завершить чтение' : 'Прочитано · Далее →'}
