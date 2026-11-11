@@ -5,6 +5,7 @@ import { Header } from './components/Header';
 import { CloudSync } from './components/CloudSync';
 import { DayView } from './components/DayView';
 import { WeekView } from './components/WeekView';
+import { YearView } from './components/YearView';
 import { MonthView } from './components/MonthView';
 import { HealthView } from './components/HealthView';
 import { RamadanView } from './components/RamadanView';
@@ -21,8 +22,8 @@ export default function App() {
   const [scopeDialog, setScopeDialog] = useState<{ kind: 'edit' | 'delete'; id: string; input?: TaskInput } | null>(null);
   // A single cloud-synced Quran tracker is an internal record, never a goal
   // in the normal Day / Week / Month task calendar.
-  const rangeStart = new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 1, 1);
-  const rangeEnd = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 2, 0);
+  const rangeStart = new Date(selectedDate.getFullYear() - 1, 0, 1);
+  const rangeEnd = new Date(selectedDate.getFullYear() + 1, 11, 31);
   const visibleTasks: Task[] = taskStore.tasks.flatMap(task => {
     if (task.category === QURAN_TRACKER_CATEGORY) return [];
     if (!task.recurrence || task.recurrence === 'none') return [task];
@@ -151,6 +152,7 @@ export default function App() {
         )}
         {view === 'health' && <HealthView />}
         {view === 'ramadan' && <RamadanView {...taskStore} />}
+        {view === 'year' && <YearView date={selectedDate} tasks={visibleTasks} onOpenMonth={(date) => { setSelectedDate(date); setView('month'); }} onChangeYear={setSelectedDate} />}
         {view === 'month' && (
           <MonthView date={selectedDate} onChangeDate={setSelectedDate} onOpenDay={openDay} tasks={visibleTasks} />
         )}

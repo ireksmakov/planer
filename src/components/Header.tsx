@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { ViewMode } from '../types';
 import { dateLabel, today } from '../utils/date';
 
@@ -9,8 +10,7 @@ const views: { key: ViewMode; title: string; number: string }[] = [
   { key: 'day', title: 'День', number: '01' },
   { key: 'week', title: 'Неделя', number: '02' },
   { key: 'month', title: 'Месяц', number: '03' },
-  { key: 'ramadan', title: 'Рамадан', number: '04' },
-  { key: 'health', title: 'Здоровье', number: '05' },
+  { key: 'year', title: 'Год', number: '04' },
 ];
 function EightPointStar() {
   return (
@@ -23,6 +23,8 @@ function EightPointStar() {
   );
 }
 export function Header({ view, onChangeView }: HeaderProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const selected = views.find(item => item.key === view);
   return (
     <header className="site-header">
       <div className="ornament-line" aria-hidden="true">
@@ -57,14 +59,30 @@ export function Header({ view, onChangeView }: HeaderProps) {
           <span className="masthead-date">{dateLabel(today(), 'd MMMM yyyy')}</span>
         </div>
       </div>
-      <nav className="view-tabs" aria-label="Режим просмотра">
-        {views.map(({ key, title, number }) => (
-          <button key={key} type="button" className={`view-tab ${view === key ? 'is-active' : ''}`}
-            onClick={() => onChangeView(key)} aria-current={view === key ? 'page' : undefined}>
-            <span className="tab-number">{number}</span>{title}
+      <nav className="view-tabs" aria-label="Разделы Планера" style={{ display: 'flex', alignItems: 'stretch', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ position: 'relative', flex: '1 1 180px', minWidth: 0 }}>
+          <button type="button" className={`view-tab ${views.some(item => item.key === view) ? 'is-active' : ''}`}
+            aria-expanded={menuOpen} aria-haspopup="true" aria-controls="planning-view-menu"
+            onClick={() => setMenuOpen(open => !open)}
+            style={{ width: '100%', display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', minHeight: 52 }}>
+            <span>Планирование · {selected?.title ?? 'День'}</span><span aria-hidden="true">{menuOpen ? '▴' : '▾'}</span>
           </button>
+          {menuOpen && <div id="planning-view-menu" role="group" aria-label="Выбор периода"
+            style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, padding: 8, background: '#faf8f0', border: '1px solid #d7c9a8', borderRadius: 12, boxShadow: '0 12px 28px rgba(0,0,0,.14)' }}>
+            {views.map(({ key, title }) => <button key={key} type="button" aria-current={view === key ? 'page' : undefined}
+              onClick={() => { onChangeView(key); setMenuOpen(false); }}
+              style={{ display: 'block', width: '100%', textAlign: 'left', padding: '12px 14px', border: 'none', borderRadius: 8,
+                background: view === key ? '#e3ebe4' : 'transparent', color: '#173c30', fontSize: 16, fontWeight: view === key ? 700 : 500 }}>
+              {view === key ? '✓ ' : ''}{title}
+            </button>)}
+          </div>}
+        </div>
+        {([['ramadan','Рамадан'],['health','Здоровье']] as const).map(([key,title]) => (
+          <button key={key} type="button" className={`view-tab ${view === key ? 'is-active' : ''}`}
+            onClick={() => { onChangeView(key); setMenuOpen(false); }}
+            aria-current={view === key ? 'page' : undefined}
+            style={{ flex: '1 1 120px', minHeight: 52, textAlign: 'center' }}>{title}</button>
         ))}
-        <span className="tabs-note">НАМЕРЕНИЕ · ВРЕМЯ · ДЕЛА</span>
       </nav>
     </header>
   );
