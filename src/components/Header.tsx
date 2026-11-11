@@ -10,6 +10,7 @@ const views: { key: ViewMode; title: string; number: string }[] = [
   { key: 'week', title: 'Неделя', number: '02' },
   { key: 'month', title: 'Месяц', number: '03' },
   { key: 'ramadan', title: 'Рамадан', number: '04' },
+  { key: 'health', title: 'Здоровье', number: '05' },
 ];
 function EightPointStar() {
   return (
