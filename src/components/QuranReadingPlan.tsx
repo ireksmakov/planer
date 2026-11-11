@@ -129,7 +129,8 @@ export function QuranReadingPlan({
 
   const saveBookmark = (session: number, page: number) => {
     if (!plan || !currentStartDate || mismatchedStart) return;
-    persist({ ...plan, bookmark: { session, page } });
+    const samePage = plan.bookmark?.session === session && plan.bookmark.page === page;
+    persist({ ...plan, bookmark: samePage ? null : { session, page } });
   };
 
   const cycle = plan ? Math.floor(selected / plan.pace) : 0;
