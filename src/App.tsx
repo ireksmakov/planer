@@ -6,6 +6,7 @@ import { CloudSync } from './components/CloudSync';
 import { DayView } from './components/DayView';
 import { WeekView } from './components/WeekView';
 import { MonthView } from './components/MonthView';
+import { HealthView } from './components/HealthView';
 import { RamadanView } from './components/RamadanView';
 import { QURAN_TRACKER_CATEGORY } from './utils/quranReading';
 
@@ -148,6 +149,7 @@ export default function App() {
         {view === 'week' && (
           <WeekView date={selectedDate} onChangeDate={setSelectedDate} onOpenDay={openDay} {...recurringActions} tasks={visibleTasks} />
         )}
+        {view === 'health' && <HealthView />}
         {view === 'ramadan' && <RamadanView {...taskStore} />}
         {view === 'month' && (
           <MonthView date={selectedDate} onChangeDate={setSelectedDate} onOpenDay={openDay} tasks={visibleTasks} />
