@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 type QuranAyah = {
   text: string;
@@ -49,6 +49,21 @@ export function QuranPageReader({
   const [retryKey, setRetryKey] = useState(0);
   const cache = useRef(new Map<number, QuranPage>());
   const top = useRef<HTMLDivElement>(null);
+  const actionsRef = useRef<HTMLDivElement>(null);
+  const positionRef = useRef<number | null>(null);
+  const preservePosition = (action: () => void) => {
+    positionRef.current = actionsRef.current?.getBoundingClientRect().top ?? null;
+    action();
+  };
+
+  // Keep the navigation buttons at the same screen position while page
+  // content is replaced, including when the network response arrives.
+  useLayoutEffect(() => {
+    if (positionRef.current === null || !actionsRef.current) return;
+    const delta = actionsRef.current.getBoundingClientRect().top - positionRef.current;
+    if (Math.abs(delta) > 0.5) window.scrollBy({ top: delta, behavior: 'instant' });
+  }, [page, data, loading]);
+
   const touchStart = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
@@ -130,8 +145,8 @@ export function QuranPageReader({
           // Preserve ordinary vertical scrolling. Only deliberate horizontal
           // book-like swipes move to another page.
           if (Math.abs(horizontal) < 70 || Math.abs(horizontal) < Math.abs(vertical) * 1.5) return;
-          if (horizontal < 0) onReadPage();
-          else if (page > firstPage) onBack();
+          if (horizontal < 0) preservePosition(onReadPage);
+          else if (page > firstPage) preservePosition(onBack);
         }}
       >
         <div className="quran-mushaf-ornament" aria-hidden="true">۞</div>
@@ -161,14 +176,14 @@ export function QuranPageReader({
         <span>Прочитано в этой части: <strong>{readCount} из {lastPage - firstPage + 1} стр.</strong></span>
         <span>{isBookmarked ? '🔖 Здесь закладка' : ''}</span>
       </div>
-      <div className="quran-reader-actions">
-        <button type="button" className="quran-reader-prev" disabled={page <= firstPage} onClick={onBack}>
+      <div className="quran-reader-actions" ref={actionsRef}>
+        <button type="button" className="quran-reader-prev" disabled={page <= firstPage} onClick={() => preservePosition(onBack)}>
           ← Назад
         </button>
         <button type="button" className="quran-reader-bookmark" aria-pressed={isBookmarked} onClick={onBookmark}>
           🔖 {isBookmarked ? 'Убрать закладку' : 'Поставить закладку'}
         </button>
-        <button type="button" className="quran-reader-next" disabled={!displayed} onClick={onReadPage}>
+        <button type="button" className="quran-reader-next" disabled={!displayed} onClick={() => preservePosition(onReadPage)}>
           {page >= lastPage ? '✓ Завершить чтение' : 'Прочитано · Далее →'}
         </button>
       </div>
