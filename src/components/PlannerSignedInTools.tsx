@@ -23,9 +23,9 @@ type Props = {
  */
 export function PlannerSignedInTools({ token, identity, taskCount, syncStatus, onLogout, onLinked, onRefresh }: Props) {
   return (
-    <section className="planner-utility-bar" aria-label="Настройки уведомлений и аккаунта">
+    <section className="planner-utility-bar" aria-label="Звуки, обновление и аккаунт">
       <PushNotifications token={token} compact />
-      <button type="button" className="planner-utility-button" onClick={onRefresh} aria-label="Обновить Планер" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'pointer' }}>
+      <button type="button" className="planner-utility-button" onClick={onRefresh} aria-label="Обновить Планер" >
         <span aria-hidden="true">🔄</span><span>Обновить</span>
       </button>
       <details className="planner-account-menu">
