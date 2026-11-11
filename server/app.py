@@ -94,6 +94,63 @@ class Task(BaseModel):
     subgoals: list[str] = Field(default_factory=list, max_length=30)
     quranReading: QuranReadingState | None = None
 
+class HealthRecord(BaseModel):
+    id: str = Field(min_length=1, max_length=100)
+    kind: Literal["pressure", "temperature", "medicine", "supplement", "note"]
+    date: str = Field(pattern=r"^\\d{4}-\\d{2}-\\d{2}$")
+    time: str = Field(pattern=r"^(?:[01]\\d|2[0-3]):[0-5]\\d$")
+    title: str = Field(default="", max_length=160)
+    notes: str = Field(default="", max_length=2000)
+    systolic: int | None = Field(default=None, ge=40, le=300)
+    diastolic: int | None = Field(default=None, ge=20, le=200)
+    pulse: int | None = Field(default=None, ge=20, le=250)
+    temperature: float | None = Field(default=None, ge=30, le=45)
+    dose: str = Field(default="", max_length=100)
+    schedule: str = Field(default="", max_length=500)
+    taken: bool = False
+
+    @model_validator(mode="after")
+    def check_measurement(self):
+        datetime.strptime(self.date, "%Y-%m-%d")
+        if self.kind == "pressure" and (self.systolic is None or self.diastolic is None or self.systolic <= self.diastolic):
+            raise ValueError("Invalid blood pressure")
+        if self.kind == "temperature" and self.temperature is None:
+            raise ValueError("Temperature required")
+        if self.kind in ("medicine", "supplement") and not self.title.strip():
+            raise ValueError("Name required")
+        return self
+
+
+@app.get("/api/health")
+def health_records(authorization: str | None = Header(default=None)):
+    uid = user(authorization)
+    with _lock, database() as db:
+        db.execute("CREATE TABLE IF NOT EXISTS health_records (uid TEXT NOT NULL, id TEXT NOT NULL, payload TEXT NOT NULL, PRIMARY KEY(uid,id))")
+        rows = db.execute("SELECT payload FROM health_records WHERE uid=? ORDER BY id", (uid,)).fetchall()
+        return {"records": [json.loads(row[0]) for row in rows]}
+
+
+@app.put("/api/health")
+def save_health_record(record: HealthRecord, authorization: str | None = Header(default=None)):
+    uid = user(authorization)
+    with _lock, database() as db:
+        db.execute("CREATE TABLE IF NOT EXISTS health_records (uid TEXT NOT NULL, id TEXT NOT NULL, payload TEXT NOT NULL, PRIMARY KEY(uid,id))")
+        db.execute("INSERT OR REPLACE INTO health_records(uid,id,payload) VALUES(?,?,?)",
+                   (uid, record.id, json.dumps(record.model_dump(), ensure_ascii=False)))
+        db.commit()
+    return {"ok": True}
+
+
+@app.delete("/api/health/{record_id}")
+def delete_health_record(record_id: str, authorization: str | None = Header(default=None)):
+    uid = user(authorization)
+    with _lock, database() as db:
+        db.execute("CREATE TABLE IF NOT EXISTS health_records (uid TEXT NOT NULL, id TEXT NOT NULL, payload TEXT NOT NULL, PRIMARY KEY(uid,id))")
+        db.execute("DELETE FROM health_records WHERE uid=? AND id=?", (uid, record_id))
+        db.commit()
+    return {"ok": True}
+
+
 class ImportRequest(BaseModel):
     tasks: list[Task] = Field(max_length=3000)
 
