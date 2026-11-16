@@ -38,6 +38,8 @@ export function TaskForm({ date, initial, compact = false, onSubmit, onCancel }:
   const [priority, setPriority] = useState<TaskPriority>(initial?.priority ?? 'medium');
   const [category, setCategory] = useState(initial?.category ?? 'Личное');
   const [recurrence, setRecurrence] = useState<TaskRecurrence>(initial?.recurrence ?? 'none');
+  const [recurrenceDates, setRecurrenceDates] = useState<string[]>(initial?.recurrenceDates ?? []);
+  const [calendarMonth, setCalendarMonth] = useState(() => (initial?.date ?? date).slice(0, 7));
   const [reminderMinutes, setReminderMinutes] = useState(initial?.reminderMinutes ?? 30);
   const [repeatReminder, setRepeatReminder] = useState(initial?.repeatReminder ?? false);
   const [error, setError] = useState(false);
@@ -56,6 +58,8 @@ export function TaskForm({ date, initial, compact = false, onSubmit, onCancel }:
     setReminderMinutes(initial?.reminderMinutes ?? 30);
     setRepeatReminder(initial?.repeatReminder ?? false);
     setRecurrence(initial?.recurrence ?? 'none');
+    setRecurrenceDates(initial?.recurrenceDates ?? []);
+    setCalendarMonth((initial?.date ?? date).slice(0, 7));
     setError(false);
     setDateError(false);
   }, [date, initial]);
@@ -67,6 +71,10 @@ export function TaskForm({ date, initial, compact = false, onSubmit, onCancel }:
       return;
     }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(selectedDate)) {
+      setDateError(true);
+      return;
+    }
+    if (recurrence === 'custom' && recurrenceDates.length === 0) {
       setDateError(true);
       return;
     }
@@ -87,7 +95,7 @@ export function TaskForm({ date, initial, compact = false, onSubmit, onCancel }:
       title: title.trim(),
       description: description.trim(),
       color,
-      date: selectedDate,
+      date: recurrence === 'custom' ? [...recurrenceDates].sort()[0] : selectedDate,
       time,
       endTime,
       priority,
@@ -95,6 +103,7 @@ export function TaskForm({ date, initial, compact = false, onSubmit, onCancel }:
       reminderMinutes: time ? reminderMinutes : -1,
       repeatReminder: Boolean(time && repeatReminder),
       recurrence,
+      recurrenceDates: recurrence === 'custom' ? [...new Set(recurrenceDates)].sort() : [],
       subgoals: initial?.subgoals,
     });
   }
@@ -181,7 +190,38 @@ export function TaskForm({ date, initial, compact = false, onSubmit, onCancel }:
           <option value="weekly">Каждую неделю</option>
           <option value="monthly">Каждый месяц</option>
           <option value="yearly">Каждый год</option>
+          <option value="custom">Другое — выбрать даты</option>
         </select>
+        {recurrence === 'custom' && (() => {
+          const [year, month] = calendarMonth.split('-').map(Number);
+          const offset = (new Date(year, month - 1, 1).getDay() + 6) % 7;
+          const days = new Date(year, month, 0).getDate();
+          const moveMonth = (step: number) => {
+            const next = new Date(year, month - 1 + step, 1);
+            setCalendarMonth(next.getFullYear() + '-' + String(next.getMonth() + 1).padStart(2, '0'));
+          };
+          return <div style={{ marginTop: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 12 }}>
+              <button type="button" onClick={() => moveMonth(-1)} aria-label="Предыдущий месяц">←</button>
+              <strong>{new Date(year, month - 1, 1).toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })}</strong>
+              <button type="button" onClick={() => moveMonth(1)} aria-label="Следующий месяц">→</button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 5 }}>
+              {['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(day => <span key={day} style={{ textAlign: 'center', fontSize: 12 }}>{day}</span>)}
+              {Array.from({ length: offset }, (_, i) => <span key={'empty-' + i} />)}
+              {Array.from({ length: days }, (_, i) => {
+                const key = calendarMonth + '-' + String(i + 1).padStart(2, '0');
+                const selected = recurrenceDates.includes(key);
+                return <button key={key} type="button" aria-pressed={selected} aria-label={key}
+                  onClick={() => { setRecurrenceDates(old => old.includes(key) ? old.filter(d => d !== key) : [...old, key]); setDateError(false); }}
+                  style={{ minWidth: 0, padding: '10px 0', borderRadius: 10, border: selected ? '2px solid #b58b45' : '1px solid #b5cdbf',
+                    background: selected ? 'linear-gradient(135deg, #17604b, #3a8164)' : '#fffdf7', color: selected ? 'white' : '#183b32', fontWeight: selected ? 700 : 400 }}>
+                  {i + 1}</button>;
+              })}
+            </div>
+            <small style={{ display: 'block', marginTop: 10 }}>Выбрано дат: {recurrenceDates.length}. Нажмите на выделенную дату ещё раз, чтобы убрать её.</small>
+          </div>;
+        })()}
         {recurrence !== 'none' && <small style={{ display: 'block', marginTop: 8 }}>Повторение с выбранной даты; выполнение каждой даты учитывается отдельно.</small>}
       </label>
       <label className="field" style={{ display: 'block', marginBottom: 16, padding: 14, border: '1px solid #b5cdbf', borderRadius: 12, background: '#edf5ee' }}>
