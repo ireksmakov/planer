@@ -95,7 +95,7 @@ export function TaskForm({ date, initial, compact = false, onSubmit, onCancel }:
       title: title.trim(),
       description: description.trim(),
       color,
-      date: selectedDate,
+      date: recurrence === 'custom' ? [...recurrenceDates].sort()[0] : selectedDate,
       time,
       endTime,
       priority,
