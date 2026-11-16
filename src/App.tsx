@@ -34,7 +34,7 @@ export default function App() {
     const keyOf = (d: Date) => [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-');
     for (let current = new Date(start); current <= rangeEnd; current.setDate(current.getDate() + 1)) {
       const diff = Math.round((Date.UTC(current.getFullYear(), current.getMonth(), current.getDate()) - Date.UTC(year, month - 1, day)) / 86400000);
-      const matches = task.recurrence === 'daily' ||
+      const matches = (task.recurrence === 'custom' && (task.recurrenceDates ?? []).includes(keyOf(current))) || task.recurrence === 'daily' ||
         (task.recurrence === 'weekly' && diff % 7 === 0) ||
         (task.recurrence === 'monthly' && current.getDate() === Math.min(day, new Date(current.getFullYear(), current.getMonth() + 1, 0).getDate())) ||
         (task.recurrence === 'yearly' && current.getMonth() === month - 1 && current.getDate() === Math.min(day, new Date(current.getFullYear(), month, 0).getDate()));
